@@ -108,21 +108,21 @@ async def get_latest_risk_assessment(
                 "id": str(assessment.id),
                 "company_id": str(assessment.company_id),
                 "assessment_date": assessment.assessment_date.isoformat(),
-                "overall_risk_score": float(assessment.overall_risk_score) if assessment.overall_risk_score else None,
+                "overall_risk_score": float(assessment.overall_risk_score) if assessment.overall_risk_score is not None else None,
                 "risk_rating": assessment.risk_rating,
                 "component_risks": {
-                    "business_risk": float(assessment.business_risk_score) if assessment.business_risk_score else None,
-                    "financial_risk": float(assessment.financial_risk_score) if assessment.financial_risk_score else None,
-                    "operational_risk": float(assessment.operational_risk_score) if assessment.operational_risk_score else None,
-                    "market_risk": float(assessment.market_risk_score) if assessment.market_risk_score else None,
-                    "esg_risk": float(assessment.esg_risk_score) if assessment.esg_risk_score else None,
+                    "business_risk": float(assessment.business_risk_score) if assessment.business_risk_score is not None else None,
+                    "financial_risk": float(assessment.financial_risk_score) if assessment.financial_risk_score is not None else None,
+                    "operational_risk": float(assessment.operational_risk_score) if assessment.operational_risk_score is not None else None,
+                    "market_risk": float(assessment.market_risk_score) if assessment.market_risk_score is not None else None,
+                    "esg_risk": float(assessment.esg_risk_score) if assessment.esg_risk_score is not None else None,
                 },
                 "metrics": {
-                    "altman_z_score": float(assessment.altman_z_score) if assessment.altman_z_score else None,
-                    "beta": float(assessment.beta) if assessment.beta else None,
-                    "volatility_30d": float(assessment.volatility_30d) if assessment.volatility_30d else None,
-                    "volatility_90d": float(assessment.volatility_90d) if assessment.volatility_90d else None,
-                    "value_at_risk_95": float(assessment.value_at_risk_95) if assessment.value_at_risk_95 else None,
+                    "altman_z_score": float(assessment.altman_z_score) if assessment.altman_z_score is not None else None,
+                    "beta": float(assessment.beta) if assessment.beta is not None else None,
+                    "volatility_30d": float(assessment.volatility_30d) if assessment.volatility_30d is not None else None,
+                    "volatility_90d": float(assessment.volatility_90d) if assessment.volatility_90d is not None else None,
+                    "value_at_risk_95": float(assessment.value_at_risk_95) if assessment.value_at_risk_95 is not None else None,
                 },
                 "risk_factors": assessment.risk_factors,
                 "risk_details": assessment.risk_details,
@@ -217,7 +217,8 @@ async def calculate_altman_z_score(
                 "interpretation": result["interpretation"],
                 "risk_level": result["risk_level"],
                 "components": {
-                    k: float(v) for k, v in result.get("components", {}).items()
+                    k: float(v) if v is not None else None
+                    for k, v in result.get("components", {}).items()
                 } if "components" in result else None,
             },
         }

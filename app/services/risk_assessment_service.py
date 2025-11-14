@@ -12,7 +12,7 @@ Comprehensive risk analysis including:
 
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from uuid import UUID
 import logging
 
@@ -48,7 +48,7 @@ class RiskAssessmentService:
         balance_sheet: BalanceSheet,
         income_statement: IncomeStatement,
         market_cap: Optional[Decimal] = None,
-    ) -> Dict[str, Decimal]:
+    ) -> Dict[str, Any]:
         """
         Calculate Altman Z-Score for bankruptcy prediction.
 
