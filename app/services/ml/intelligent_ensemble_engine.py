@@ -51,6 +51,7 @@ from sklearn.ensemble import RandomForestRegressor
 
 from app.services.valuation_service import ValuationService
 from app.services.advanced_valuation_service import AdvancedValuationService
+from app.services.ml.dynamic_weights_manager import DynamicWeightsManager
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +222,7 @@ class IntelligentEnsembleEngine:
         # Initialize services
         self.valuation_service = ValuationService(db, tenant_id)
         self.advanced_service = AdvancedValuationService(db, tenant_id)
+        self.weights_manager = DynamicWeightsManager(db)  # ✨ NEW: Dynamic weights
         
         # ML components
         self.device = torch.device("cuda" if use_gpu and torch.cuda.is_available() else "cpu")
@@ -523,11 +525,18 @@ class IntelligentEnsembleEngine:
             consistency = np.std(values) if values else 0.0
             features.append(consistency)
         
-        # Feature 4-11: Historical accuracy (placeholder - would load from database)
+        # Feature 4-11: Historical accuracy (load from database)
+        # ✨ NEW: Load actual historical accuracy from DynamicWeightsManager
+        accuracy_stats = await self.weights_manager.get_model_accuracy_stats(days_lookback=90)
         for model_name in self.VALUATION_MODELS:
-            # In production, load historical MAPE/MAE for this model
-            historical_accuracy = 0.85  # Placeholder
-            features.append(historical_accuracy)
+            if model_name in accuracy_stats and accuracy_stats[model_name]['count'] > 0:
+                # Use inverse of mean error as accuracy
+                mean_error = accuracy_stats[model_name]['mean_error']
+                accuracy = max(0.0, 1.0 - mean_error / 100.0)  # Convert % error to accuracy
+                features.append(accuracy)
+            else:
+                # Default if no history
+                features.append(0.85)  # 85% default accuracy
         
         # Feature 12-14: Value dispersion
         all_values = []
@@ -566,7 +575,12 @@ class IntelligentEnsembleEngine:
         model_results: Dict[str, Dict[str, Any]],
     ) -> Dict[str, float]:
         """
-        Calculate dynamic model weights using ML.
+        Calculate dynamic model weights using ML OR database weights.
+        
+        Priority:
+        1. Try to load from database (daily updated)
+        2. Fallback to ML network
+        3. Fallback to equal weights
         
         Args:
             features: Extracted features
@@ -575,6 +589,21 @@ class IntelligentEnsembleEngine:
         Returns:
             Dictionary of model weights (sum = 1.0)
         """
+        # ✨ NEW: Try to load from database first (PRIORITY)
+        try:
+            import asyncio
+            db_weights = asyncio.get_event_loop().run_until_complete(
+                self.weights_manager.get_current_weights()
+            )
+            
+            # Check if we have valid weights from DB
+            if db_weights and len(db_weights) == len(self.VALUATION_MODELS):
+                logger.info(f"📊 Using DATABASE weights (daily updated): {db_weights}")
+                return db_weights
+        except Exception as e:
+            logger.warning(f"⚠️ Could not load DB weights: {e}, using ML fallback")
+        
+        # Fallback to ML network
         # Normalize features
         features_normalized = self.scaler.fit_transform(features.reshape(1, -1))
         
@@ -606,7 +635,7 @@ class IntelligentEnsembleEngine:
         if total_weight > 0:
             model_weights = {k: v / total_weight for k, v in model_weights.items()}
         
-        logger.info(f"📊 Model Weights: {model_weights}")
+        logger.info(f"📊 ML Network Weights (fallback): {model_weights}")
         return model_weights
     
     async def _calculate_dynamic_scenario_weights(
