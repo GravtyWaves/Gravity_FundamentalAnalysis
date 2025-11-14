@@ -124,9 +124,9 @@ class AdvancedValuationService:
             raise ValueError(f"Required financial data not available for company {company_id}")
         
         # Calculate current ROE
-        net_income = income_stmt.net_income
-        book_value = balance_sheet.total_equity
-        current_roe = net_income / book_value if book_value > 0 else Decimal("0.15")
+        net_income = income_stmt.net_income or Decimal("0")
+        book_value = balance_sheet.total_equity or Decimal("1")
+        current_roe = net_income / book_value if book_value > Decimal("0") else Decimal("0.15")
         
         # Estimate cost of equity using CAPM if not provided
         if not cost_of_equity:
@@ -175,7 +175,7 @@ class AdvancedValuationService:
         fair_value_per_share = equity_value / shares_outstanding
         
         # Current price and upside/downside
-        current_price = market_data.close_price
+        current_price = market_data.close_price or Decimal("0")
         upside_downside = ((fair_value_per_share - current_price) / current_price) * Decimal("100")
         
         # Create valuation record
@@ -247,30 +247,30 @@ class AdvancedValuationService:
             raise ValueError(f"Required financial data not available")
         
         # Calculate NOPAT (Net Operating Profit After Tax)
-        ebit = income_stmt.operating_income or income_stmt.ebit
+        ebit = income_stmt.operating_income or income_stmt.ebit or Decimal("0")
         tax_rate = Decimal("0.25")  # Default Iranian corporate tax
-        if income_stmt.income_tax_expense and income_stmt.income_before_tax:
-            if income_stmt.income_before_tax != 0:
-                tax_rate = abs(income_stmt.income_tax_expense / income_stmt.income_before_tax)
+        if income_stmt.income_tax_expense is not None and income_stmt.income_before_tax is not None:
+            if income_stmt.income_before_tax != Decimal("0"):
+                tax_rate = abs(float(income_stmt.income_tax_expense) / float(income_stmt.income_before_tax))  # type: ignore[arg-type]
         
-        nopat = ebit * (Decimal("1") - tax_rate)
+        nopat = ebit * (Decimal("1") - Decimal(str(tax_rate)))
         
         # Calculate Invested Capital
-        total_assets = balance_sheet.total_assets
+        total_assets = balance_sheet.total_assets or Decimal("0")
         current_liabilities = balance_sheet.current_liabilities or Decimal("0")
-        excess_cash = balance_sheet.cash * Decimal("0.5")  # Assume 50% excess cash
+        excess_cash = (balance_sheet.cash or Decimal("0")) * Decimal("0.5")  # Assume 50% excess cash
         invested_capital = total_assets - current_liabilities - excess_cash
         
         # Estimate WACC if not provided
         if not wacc:
             cost_of_equity = Decimal("0.18")  # 18%
             cost_of_debt = Decimal("0.08")  # 8%
-            equity_value = balance_sheet.total_equity
+            equity_value = balance_sheet.total_equity or Decimal("0")
             debt_value = (balance_sheet.long_term_debt or Decimal("0")) + \
                         (balance_sheet.short_term_debt or Decimal("0"))
             total_value = equity_value + debt_value
             
-            if total_value > 0:
+            if total_value > Decimal("0"):
                 equity_weight = equity_value / total_value
                 debt_weight = debt_value / total_value
                 wacc = (equity_weight * cost_of_equity) + \
@@ -307,15 +307,15 @@ class AdvancedValuationService:
         # Equity value = Firm Value - Net Debt
         net_debt = (balance_sheet.long_term_debt or Decimal("0")) + \
                    (balance_sheet.short_term_debt or Decimal("0")) - \
-                   balance_sheet.cash
+                   (balance_sheet.cash or Decimal("0"))
         equity_value = firm_value - net_debt
         
         # Fair value per share
         if market_data:
             shares_outstanding = market_data.shares_outstanding or Decimal("1")
             fair_value_per_share = equity_value / shares_outstanding
-            current_price = market_data.close_price
-            upside_downside = ((fair_value_per_share - current_price) / current_price) * Decimal("100")
+            current_price = market_data.close_price or Decimal("0")
+            upside_downside = ((fair_value_per_share - current_price) / current_price) * Decimal("100") if current_price > Decimal("0") else Decimal("0")
         else:
             shares_outstanding = Decimal("1")
             fair_value_per_share = equity_value
@@ -389,12 +389,12 @@ class AdvancedValuationService:
             raise ValueError(f"Required financial data not available")
         
         # Calculate EPS
-        net_income = income_stmt.net_income
+        net_income = income_stmt.net_income or Decimal("0")
         shares_outstanding = market_data.shares_outstanding or Decimal("1")
         eps = net_income / shares_outstanding
         
         # Calculate Book Value per Share
-        book_value = balance_sheet.total_equity
+        book_value = balance_sheet.total_equity or Decimal("0")
         book_value_per_share = book_value / shares_outstanding
         
         # Graham Number = sqrt(22.5 × EPS × BVPS)
@@ -406,7 +406,7 @@ class AdvancedValuationService:
             raise ValueError("EPS or Book Value per Share is negative or zero")
         
         # Current price and upside/downside
-        current_price = market_data.close_price
+        current_price = market_data.close_price or Decimal("0")
         upside_downside = ((graham_number - current_price) / current_price) * Decimal("100")
         
         # Create valuation record
@@ -495,8 +495,8 @@ class AdvancedValuationService:
         fair_value_per_share = fair_pe * eps
         
         # Current P/E
-        current_price = market_data.close_price
-        current_pe = current_price / eps if eps > 0 else Decimal("0")
+        current_price = market_data.close_price or Decimal("0")
+        current_pe = current_price / eps if eps > Decimal("0") else Decimal("0")
         
         # PEG Ratio
         peg_ratio = current_pe / earnings_growth_rate if earnings_growth_rate > 0 else Decimal("999")
@@ -570,8 +570,8 @@ class AdvancedValuationService:
             raise ValueError(f"Required financial data not available")
         
         # NCAV = Current Assets - Total Liabilities
-        current_assets = balance_sheet.current_assets
-        total_liabilities = balance_sheet.total_liabilities
+        current_assets = balance_sheet.current_assets or Decimal("0")
+        total_liabilities = balance_sheet.total_liabilities or Decimal("0")
         ncav = current_assets - total_liabilities
         
         # NCAV per share
@@ -582,15 +582,15 @@ class AdvancedValuationService:
         graham_buy_price = ncav_per_share * Decimal("0.6667")
         
         # Current price
-        current_price = market_data.close_price
+        current_price = market_data.close_price or Decimal("0")
         
         # Calculate margin of safety
-        margin_of_safety = ((graham_buy_price - current_price) / graham_buy_price) * Decimal("100")
+        margin_of_safety = ((graham_buy_price - current_price) / graham_buy_price) * Decimal("100") if graham_buy_price > Decimal("0") else Decimal("0")
         
         # Recommendation
-        if current_price <= graham_buy_price:
+        if current_price <= graham_buy_price:  # type: ignore[operator]
             recommendation = "BUY - Deep Value Opportunity"
-        elif current_price <= ncav_per_share:
+        elif current_price <= ncav_per_share:  # type: ignore[operator]
             recommendation = "HOLD - Trading at NCAV"
         else:
             recommendation = "AVOID - Overvalued on NCAV basis"
@@ -657,7 +657,7 @@ class AdvancedValuationService:
             raise ValueError(f"Required financial data not available")
         
         # Calculate revenue per share
-        revenue = income_stmt.total_revenue
+        revenue = income_stmt.total_revenue or Decimal("0")
         shares_outstanding = market_data.shares_outstanding or Decimal("1")
         revenue_per_share = revenue / shares_outstanding
         
@@ -670,8 +670,8 @@ class AdvancedValuationService:
         fair_value_per_share = revenue_per_share * industry_ps_multiple
         
         # Current price and comparison
-        current_price = market_data.close_price
-        current_ps = current_price / revenue_per_share if revenue_per_share > 0 else Decimal("0")
+        current_price = market_data.close_price or Decimal("0")
+        current_ps = current_price / revenue_per_share if revenue_per_share > Decimal("0") else Decimal("0")
         upside_downside = ((fair_value_per_share - current_price) / current_price) * Decimal("100")
         
         # Create valuation record
@@ -735,7 +735,7 @@ class AdvancedValuationService:
             raise ValueError(f"Required financial data not available")
         
         # Calculate cash flow per share
-        operating_cash_flow = cash_flow.operating_cash_flow
+        operating_cash_flow = cash_flow.operating_cash_flow or Decimal("0")
         shares_outstanding = market_data.shares_outstanding or Decimal("1")
         cash_flow_per_share = operating_cash_flow / shares_outstanding
         
@@ -748,8 +748,8 @@ class AdvancedValuationService:
         fair_value_per_share = cash_flow_per_share * industry_pcf_multiple
         
         # Current price and comparison
-        current_price = market_data.close_price
-        current_pcf = current_price / cash_flow_per_share if cash_flow_per_share > 0 else Decimal("0")
+        current_price = market_data.close_price or Decimal("0")
+        current_pcf = current_price / cash_flow_per_share if cash_flow_per_share > Decimal("0") else Decimal("0")  # type: ignore[operator]
         upside_downside = ((fair_value_per_share - current_price) / current_price) * Decimal("100")
         
         # Create valuation record
