@@ -104,7 +104,7 @@ class MLModelWeights(Base):
         """Convert to dictionary."""
         return {
             'id': str(self.id),
-            'effective_date': self.effective_date.isoformat() if self.effective_date else None,
+            'effective_date': self.effective_date.isoformat() if self.effective_date is not None else None,
             'is_active': self.is_active,
             'weights': {
                 'dcf': float(self.dcf_weight),
@@ -117,12 +117,12 @@ class MLModelWeights(Base):
                 'pcf_ratio': float(self.pcf_ratio_weight),
             },
             'performance': {
-                'training_accuracy': float(self.training_accuracy) if self.training_accuracy else None,
-                'validation_accuracy': float(self.validation_accuracy) if self.validation_accuracy else None,
-                'backtest_mape': float(self.backtest_mape) if self.backtest_mape else None,
-                'improvement': float(self.improvement_vs_previous) if self.improvement_vs_previous else None,
+                'training_accuracy': float(self.training_accuracy) if self.training_accuracy is not None else None,
+                'validation_accuracy': float(self.validation_accuracy) if self.validation_accuracy is not None else None,
+                'backtest_mape': float(self.backtest_mape) if self.backtest_mape is not None else None,
+                'improvement': float(self.improvement_vs_previous) if self.improvement_vs_previous is not None else None,
             },
-            'deployed_at': self.deployed_at.isoformat() if self.deployed_at else None,
+            'deployed_at': self.deployed_at.isoformat() if self.deployed_at is not None else None,
         }
 
 
