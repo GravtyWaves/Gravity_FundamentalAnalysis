@@ -42,7 +42,7 @@ Notes:               - Implements Random Forest Regressor with cross-validation
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 import logging
 import pickle
@@ -416,7 +416,7 @@ class MLWeightOptimizer:
         
         return round(base_confidence, 3)
     
-    async def get_model_metrics(self) -> Dict[str, any]:
+    async def get_model_metrics(self) -> Dict[str, Any]:
         """
         Get comprehensive model performance metrics.
         
