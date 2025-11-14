@@ -48,6 +48,7 @@ from app.models.financial_statements import BalanceSheet, CashFlowStatement, Inc
 from app.models.ratios import FinancialRatio
 from app.models.valuation_risk import MarketData, Valuation
 from app.schemas.valuation_risk import ValuationCreate
+from app.schemas.valuation_features import ScenarioValuation, MultiMethodValuation
 
 
 class ValuationService:
@@ -723,3 +724,407 @@ class ValuationService:
         await self.db.refresh(valuation)
 
         return valuation
+
+    # ==================== ML-READY VALUATION METHODS ====================
+
+    async def calculate_multi_method_valuation(
+        self,
+        company_id: UUID,
+        symbol: str,
+        valuation_date: date,
+    ) -> MultiMethodValuation:
+        """
+        Calculate comprehensive multi-method valuation with all scenarios.
+        
+        Returns 15 valuations:
+        - DCF (bull/base/bear)
+        - Comparables (bull/base/bear)
+        - Asset-Based (bull/base/bear)
+        - DDM (bull/base/bear)
+        - RIM (bull/base/bear)
+        
+        This is the FOUNDATION for ML feature engineering and predictions.
+        
+        Args:
+            company_id: Company UUID
+            symbol: Stock symbol
+            valuation_date: Valuation date
+            
+        Returns:
+            MultiMethodValuation with all 15 scenario valuations
+            
+        Raises:
+            ValueError: If required financial data is missing
+        """
+        from datetime import datetime
+        
+        # Fetch current market price
+        market_data = await self._get_latest_market_data(company_id)
+        if not market_data:
+            raise ValueError(f"Market data not found for company {company_id}")
+        
+        current_price = market_data.close_price
+        
+        # Calculate DCF scenarios
+        dcf_bull = await self._calculate_dcf_scenario(company_id, valuation_date, "bull")
+        dcf_base = await self._calculate_dcf_scenario(company_id, valuation_date, "base")
+        dcf_bear = await self._calculate_dcf_scenario(company_id, valuation_date, "bear")
+        
+        # Calculate Comparables scenarios
+        comp_bull = await self._calculate_comparables_scenario(company_id, valuation_date, "bull")
+        comp_base = await self._calculate_comparables_scenario(company_id, valuation_date, "base")
+        comp_bear = await self._calculate_comparables_scenario(company_id, valuation_date, "bear")
+        
+        # Calculate Asset-Based scenarios
+        asset_bull = await self._calculate_asset_scenario(company_id, valuation_date, "bull")
+        asset_base = await self._calculate_asset_scenario(company_id, valuation_date, "base")
+        asset_bear = await self._calculate_asset_scenario(company_id, valuation_date, "bear")
+        
+        # Calculate DDM scenarios (NEW)
+        ddm_bull = await self._calculate_ddm_scenario(company_id, valuation_date, "bull")
+        ddm_base = await self._calculate_ddm_scenario(company_id, valuation_date, "base")
+        ddm_bear = await self._calculate_ddm_scenario(company_id, valuation_date, "bear")
+        
+        # Calculate RIM scenarios (NEW)
+        rim_bull = await self._calculate_rim_scenario(company_id, valuation_date, "bull")
+        rim_base = await self._calculate_rim_scenario(company_id, valuation_date, "base")
+        rim_bear = await self._calculate_rim_scenario(company_id, valuation_date, "bear")
+        
+        # Create MultiMethodValuation
+        multi_valuation = MultiMethodValuation(
+            company_id=company_id,
+            symbol=symbol,
+            valuation_date=datetime.combine(valuation_date, datetime.min.time()),
+            current_price=current_price,
+            dcf_bull=dcf_bull,
+            dcf_base=dcf_base,
+            dcf_bear=dcf_bear,
+            comparable_bull=comp_bull,
+            comparable_base=comp_base,
+            comparable_bear=comp_bear,
+            asset_bull=asset_bull,
+            asset_base=asset_base,
+            asset_bear=asset_bear,
+            ddm_bull=ddm_bull,
+            ddm_base=ddm_base,
+            ddm_bear=ddm_bear,
+            rim_bull=rim_bull,
+            rim_base=rim_base,
+            rim_bear=rim_bear,
+        )
+        
+        return multi_valuation
+
+    async def _calculate_dcf_scenario(
+        self,
+        company_id: UUID,
+        valuation_date: date,
+        scenario: str,
+    ) -> ScenarioValuation:
+        """Calculate DCF for specific scenario (bull/base/bear)."""
+        # Scenario-specific assumptions
+        scenario_params = {
+            "bull": {
+                "growth_rate": Decimal("0.15"),  # 15% growth
+                "terminal_growth": Decimal("0.04"),  # 4% terminal
+                "wacc_adjustment": Decimal("-0.01"),  # Lower discount rate
+                "confidence": Decimal("0.65"),
+            },
+            "base": {
+                "growth_rate": Decimal("0.10"),  # 10% growth
+                "terminal_growth": Decimal("0.025"),  # 2.5% terminal
+                "wacc_adjustment": Decimal("0.00"),  # No adjustment
+                "confidence": Decimal("0.80"),
+            },
+            "bear": {
+                "growth_rate": Decimal("0.05"),  # 5% growth
+                "terminal_growth": Decimal("0.015"),  # 1.5% terminal
+                "wacc_adjustment": Decimal("0.02"),  # Higher discount rate
+                "confidence": Decimal("0.60"),
+            },
+        }
+        
+        params = scenario_params[scenario]
+        
+        # Fetch financial data
+        income_stmt = await self._get_latest_income_statement(company_id)
+        balance_sheet = await self._get_latest_balance_sheet(company_id)
+        cash_flow = await self._get_latest_cash_flow(company_id)
+        market_data = await self._get_latest_market_data(company_id)
+        
+        if not all([income_stmt, balance_sheet, cash_flow, market_data]):
+            raise ValueError(f"Required financial data missing for company {company_id}")
+        
+        # Calculate base FCF
+        base_fcf = cash_flow.free_cash_flow or (
+            cash_flow.operating_cash_flow + (cash_flow.capital_expenditures or Decimal("0"))
+        )
+        
+        # Project FCF for 5 years
+        projected_fcf = []
+        fcf = base_fcf
+        for year in range(5):
+            fcf = fcf * (Decimal("1") + params["growth_rate"])
+            projected_fcf.append(fcf)
+        
+        # Calculate WACC (simplified)
+        base_wacc = Decimal("0.10")  # 10% base
+        wacc = base_wacc + params["wacc_adjustment"]
+        
+        # Discount projected FCF
+        pv_fcf = sum(
+            fcf / ((Decimal("1") + wacc) ** (year + 1))
+            for year, fcf in enumerate(projected_fcf)
+        )
+        
+        # Terminal value
+        terminal_fcf = projected_fcf[-1] * (Decimal("1") + params["terminal_growth"])
+        terminal_value = terminal_fcf / (wacc - params["terminal_growth"])
+        pv_terminal = terminal_value / ((Decimal("1") + wacc) ** 5)
+        
+        # Enterprise value
+        enterprise_value = pv_fcf + pv_terminal
+        
+        # Equity value
+        net_debt = (balance_sheet.long_term_debt or Decimal("0")) + (
+            balance_sheet.short_term_debt or Decimal("0")
+        ) - (balance_sheet.cash_and_equivalents or Decimal("0"))
+        equity_value = enterprise_value - net_debt
+        
+        # Fair value per share
+        shares = market_data.shares_outstanding or Decimal("1")
+        intrinsic_value = equity_value / shares
+        
+        # Fair value range (±10%)
+        fair_value_low = intrinsic_value * Decimal("0.90")
+        fair_value_high = intrinsic_value * Decimal("1.10")
+        
+        return ScenarioValuation(
+            scenario=scenario,
+            intrinsic_value=intrinsic_value,
+            fair_value_range_low=fair_value_low,
+            fair_value_range_high=fair_value_high,
+            confidence=params["confidence"],
+            key_assumptions={
+                "revenue_growth": params["growth_rate"],
+                "terminal_growth": params["terminal_growth"],
+                "wacc": wacc,
+            },
+        )
+
+    async def _calculate_comparables_scenario(
+        self,
+        company_id: UUID,
+        valuation_date: date,
+        scenario: str,
+    ) -> ScenarioValuation:
+        """Calculate Comparables valuation for specific scenario."""
+        # Scenario-specific P/E multipliers
+        scenario_multiples = {
+            "bull": {"pe_multiple": Decimal("18"), "confidence": Decimal("0.70")},
+            "base": {"pe_multiple": Decimal("15"), "confidence": Decimal("0.85")},
+            "bear": {"pe_multiple": Decimal("12"), "confidence": Decimal("0.65")},
+        }
+        
+        params = scenario_multiples[scenario]
+        
+        # Fetch latest income statement
+        income_stmt = await self._get_latest_income_statement(company_id)
+        market_data = await self._get_latest_market_data(company_id)
+        
+        if not income_stmt or not market_data:
+            raise ValueError(f"Required data missing for comparables valuation")
+        
+        # Calculate EPS
+        net_income = income_stmt.net_income
+        shares = market_data.shares_outstanding or Decimal("1")
+        eps = net_income / shares
+        
+        # Fair value = EPS × P/E Multiple
+        intrinsic_value = eps * params["pe_multiple"]
+        
+        # Fair value range (±12%)
+        fair_value_low = intrinsic_value * Decimal("0.88")
+        fair_value_high = intrinsic_value * Decimal("1.12")
+        
+        return ScenarioValuation(
+            scenario=scenario,
+            intrinsic_value=intrinsic_value,
+            fair_value_range_low=fair_value_low,
+            fair_value_range_high=fair_value_high,
+            confidence=params["confidence"],
+            key_assumptions={
+                "pe_multiple": params["pe_multiple"],
+                "eps": eps,
+            },
+        )
+
+    async def _calculate_asset_scenario(
+        self,
+        company_id: UUID,
+        valuation_date: date,
+        scenario: str,
+    ) -> ScenarioValuation:
+        """Calculate Asset-Based valuation for specific scenario."""
+        # Scenario-specific asset adjustments
+        scenario_adjustments = {
+            "bull": {"adjustment_factor": Decimal("1.15"), "confidence": Decimal("0.60")},
+            "base": {"adjustment_factor": Decimal("1.00"), "confidence": Decimal("0.75")},
+            "bear": {"adjustment_factor": Decimal("0.85"), "confidence": Decimal("0.55")},
+        }
+        
+        params = scenario_adjustments[scenario]
+        
+        # Fetch balance sheet
+        balance_sheet = await self._get_latest_balance_sheet(company_id)
+        market_data = await self._get_latest_market_data(company_id)
+        
+        if not balance_sheet or not market_data:
+            raise ValueError(f"Required data missing for asset-based valuation")
+        
+        # Book value of equity
+        book_value = balance_sheet.total_equity
+        
+        # Adjusted book value
+        adjusted_value = book_value * params["adjustment_factor"]
+        
+        # Per share
+        shares = market_data.shares_outstanding or Decimal("1")
+        intrinsic_value = adjusted_value / shares
+        
+        # Fair value range (±8%)
+        fair_value_low = intrinsic_value * Decimal("0.92")
+        fair_value_high = intrinsic_value * Decimal("1.08")
+        
+        return ScenarioValuation(
+            scenario=scenario,
+            intrinsic_value=intrinsic_value,
+            fair_value_range_low=fair_value_low,
+            fair_value_range_high=fair_value_high,
+            confidence=params["confidence"],
+            key_assumptions={
+                "book_value": book_value,
+                "adjustment_factor": params["adjustment_factor"],
+            },
+        )
+
+    async def _calculate_ddm_scenario(
+        self,
+        company_id: UUID,
+        valuation_date: date,
+        scenario: str,
+    ) -> ScenarioValuation:
+        """Calculate Dividend Discount Model for specific scenario."""
+        # Scenario-specific dividend growth
+        scenario_params = {
+            "bull": {"dividend_growth": Decimal("0.08"), "confidence": Decimal("0.65")},
+            "base": {"dividend_growth": Decimal("0.05"), "confidence": Decimal("0.80")},
+            "bear": {"dividend_growth": Decimal("0.02"), "confidence": Decimal("0.60")},
+        }
+        
+        params = scenario_params[scenario]
+        
+        # Fetch financial data
+        income_stmt = await self._get_latest_income_statement(company_id)
+        market_data = await self._get_latest_market_data(company_id)
+        
+        if not income_stmt or not market_data:
+            raise ValueError(f"Required data missing for DDM valuation")
+        
+        # Estimate dividend (40% payout ratio)
+        net_income = income_stmt.net_income
+        dividend_payout_ratio = Decimal("0.40")
+        total_dividends = net_income * dividend_payout_ratio
+        
+        shares = market_data.shares_outstanding or Decimal("1")
+        dividend_per_share = total_dividends / shares
+        
+        # Gordon Growth Model: P = D1 / (r - g)
+        required_return = Decimal("0.12")  # 12%
+        next_dividend = dividend_per_share * (Decimal("1") + params["dividend_growth"])
+        
+        intrinsic_value = next_dividend / (required_return - params["dividend_growth"])
+        
+        # Fair value range (±10%)
+        fair_value_low = intrinsic_value * Decimal("0.90")
+        fair_value_high = intrinsic_value * Decimal("1.10")
+        
+        return ScenarioValuation(
+            scenario=scenario,
+            intrinsic_value=intrinsic_value,
+            fair_value_range_low=fair_value_low,
+            fair_value_range_high=fair_value_high,
+            confidence=params["confidence"],
+            key_assumptions={
+                "dividend_per_share": dividend_per_share,
+                "dividend_growth": params["dividend_growth"],
+                "required_return": required_return,
+            },
+        )
+
+    async def _calculate_rim_scenario(
+        self,
+        company_id: UUID,
+        valuation_date: date,
+        scenario: str,
+    ) -> ScenarioValuation:
+        """Calculate Residual Income Model for specific scenario."""
+        # Scenario-specific ROE assumptions
+        scenario_params = {
+            "bull": {"roe_premium": Decimal("0.05"), "confidence": Decimal("0.70")},
+            "base": {"roe_premium": Decimal("0.00"), "confidence": Decimal("0.85")},
+            "bear": {"roe_premium": Decimal("-0.03"), "confidence": Decimal("0.65")},
+        }
+        
+        params = scenario_params[scenario]
+        
+        # Fetch financial data
+        income_stmt = await self._get_latest_income_statement(company_id)
+        balance_sheet = await self._get_latest_balance_sheet(company_id)
+        market_data = await self._get_latest_market_data(company_id)
+        
+        if not all([income_stmt, balance_sheet, market_data]):
+            raise ValueError(f"Required data missing for RIM valuation")
+        
+        # Calculate ROE
+        net_income = income_stmt.net_income
+        book_value = balance_sheet.total_equity
+        roe = net_income / book_value if book_value > 0 else Decimal("0.15")
+        
+        # Adjusted ROE for scenario
+        adjusted_roe = roe + params["roe_premium"]
+        
+        # Cost of equity
+        cost_of_equity = Decimal("0.12")  # 12%
+        
+        # Residual Income = (ROE - r) × Book Value
+        residual_income = (adjusted_roe - cost_of_equity) * book_value
+        
+        # Present value of residual income (simplified 5-year horizon)
+        pv_residual = sum(
+            residual_income / ((Decimal("1") + cost_of_equity) ** year)
+            for year in range(1, 6)
+        )
+        
+        # Intrinsic value = Book Value + PV(Residual Income)
+        intrinsic_equity_value = book_value + pv_residual
+        
+        shares = market_data.shares_outstanding or Decimal("1")
+        intrinsic_value = intrinsic_equity_value / shares
+        
+        # Fair value range (±12%)
+        fair_value_low = intrinsic_value * Decimal("0.88")
+        fair_value_high = intrinsic_value * Decimal("1.12")
+        
+        return ScenarioValuation(
+            scenario=scenario,
+            intrinsic_value=intrinsic_value,
+            fair_value_range_low=fair_value_low,
+            fair_value_range_high=fair_value_high,
+            confidence=params["confidence"],
+            key_assumptions={
+                "roe": adjusted_roe,
+                "cost_of_equity": cost_of_equity,
+                "book_value": book_value,
+            },
+        )
