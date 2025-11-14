@@ -13,7 +13,7 @@ Comprehensive trend analysis for financial metrics including:
 
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 from uuid import UUID
 import logging
 
@@ -78,8 +78,8 @@ class TrendAnalysisService:
 
     def linear_regression(
         self,
-        data_points: List[Tuple[float, float]],
-    ) -> Dict[str, float]:
+        data_points: Sequence[Tuple[float, float]],
+    ) -> Dict[str, Any]:
         """
         Perform linear regression on data points.
 
@@ -103,10 +103,17 @@ class TrendAnalysisService:
 
         # Perform linear regression
         slope, intercept, r_value, p_value, std_err = stats.linregress(x_values, y_values)
+        
+        # Convert to native Python floats for type safety
+        slope_float = float(slope)
+        intercept_float = float(intercept)
+        r_value_float = float(r_value)
+        p_value_float = float(p_value)
+        std_err_float = float(std_err)
 
         # Determine trend direction
-        if p_value < 0.05:  # Statistically significant
-            if slope > 0:
+        if p_value_float < 0.05:  # Statistically significant
+            if slope_float > 0:
                 trend = "improving"
             else:
                 trend = "declining"
@@ -114,13 +121,13 @@ class TrendAnalysisService:
             trend = "stable"
 
         return {
-            "slope": float(slope),
-            "intercept": float(intercept),
-            "r_squared": float(r_value ** 2),
-            "p_value": float(p_value),
-            "std_error": float(std_err),
+            "slope": slope_float,
+            "intercept": intercept_float,
+            "r_squared": r_value_float ** 2,
+            "p_value": p_value_float,
+            "std_error": std_err_float,
             "trend": trend,
-            "significance": "significant" if p_value < 0.05 else "not_significant",
+            "significance": "significant" if p_value_float < 0.05 else "not_significant",
         }
 
     def calculate_moving_average(
@@ -155,7 +162,7 @@ class TrendAnalysisService:
         self,
         values: List[float],
         threshold_std: float = 2.0,
-    ) -> List[Dict[str, any]]:
+    ) -> List[Dict[str, Any]]:
         """
         Detect anomalies using statistical methods.
 
@@ -190,7 +197,7 @@ class TrendAnalysisService:
         self,
         company_id: UUID,
         num_years: Optional[int] = 5,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Analyze revenue trend.
 
@@ -290,7 +297,7 @@ class TrendAnalysisService:
         self,
         company_id: UUID,
         num_years: Optional[int] = 5,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Analyze profitability trends (margins, ROE, ROA).
 
@@ -405,7 +412,7 @@ class TrendAnalysisService:
         company_id: UUID,
         ratio_name: str,
         num_periods: Optional[int] = 8,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Analyze trend for a specific financial ratio.
 

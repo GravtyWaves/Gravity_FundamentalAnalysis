@@ -11,7 +11,7 @@ Analyzes key drivers of company value:
 
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 import logging
 
@@ -42,7 +42,7 @@ class ValueDriversService:
         self,
         company_id: UUID,
         period_end_date: Optional[date] = None,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         DuPont Analysis - decompose ROE into components.
 
@@ -152,7 +152,7 @@ class ValueDriversService:
         self,
         company_id: UUID,
         num_periods: int = 5,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Analyze revenue growth drivers.
 
@@ -235,7 +235,7 @@ class ValueDriversService:
         self,
         company_id: UUID,
         num_periods: int = 5,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Analyze margin drivers (waterfall from gross to net).
 
@@ -308,7 +308,7 @@ class ValueDriversService:
         self,
         company_id: UUID,
         period_end_date: Optional[date] = None,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Analyze capital efficiency drivers.
 
@@ -402,7 +402,7 @@ class ValueDriversService:
         company_id: UUID,
         metric: str = "net_income",
         num_periods: int = 2,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Waterfall analysis of period-over-period changes.
 

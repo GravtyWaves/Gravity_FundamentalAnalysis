@@ -30,7 +30,7 @@ from app.schemas.ratios import FinancialRatioCreate
 class RatioCalculationService:
     """Service for calculating financial ratios."""
 
-    def __init__(self, db: AsyncSession, tenant_id: UUID):
+    def __init__(self, db: AsyncSession, tenant_id: UUID | str):
         """
         Initialize ratio calculation service.
 

@@ -119,14 +119,14 @@ class AdvancedValuationService:
         income_stmt = await self._get_latest_income_statement(company_id)
         balance_sheet = await self._get_latest_balance_sheet(company_id)
         market_data = await self._get_latest_market_data(company_id)
-        
+
         if not all([income_stmt, balance_sheet, market_data]):
             raise ValueError(f"Required financial data not available for company {company_id}")
-        
+
         # Calculate current ROE
         net_income = income_stmt.net_income or Decimal("0")
         book_value = balance_sheet.total_equity or Decimal("1")
-        current_roe = net_income / book_value if book_value > Decimal("0") else Decimal("0.15")
+        current_roe = net_income / book_value if book_value != Decimal("0") else Decimal("0.15")
         
         # Estimate cost of equity using CAPM if not provided
         if not cost_of_equity:

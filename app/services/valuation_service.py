@@ -54,7 +54,7 @@ from app.schemas.valuation_features import ScenarioValuation, MultiMethodValuati
 class ValuationService:
     """Service for company valuation using multiple methods."""
 
-    def __init__(self, db: AsyncSession, tenant_id: UUID):
+    def __init__(self, db: AsyncSession, tenant_id: UUID | str):
         """
         Initialize valuation service.
 

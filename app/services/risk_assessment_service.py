@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 class RiskAssessmentService:
     """Service for comprehensive risk assessment."""
 
-    def __init__(self, db: AsyncSession, tenant_id: str):
+    def __init__(self, db: AsyncSession, tenant_id: UUID | str):
         """
         Initialize risk assessment service.
 
@@ -74,9 +74,9 @@ class RiskAssessmentService:
             Dictionary with z_score and interpretation
         """
         try:
-            total_assets = balance_sheet.total_assets or Decimal("0")
-            total_liabilities = balance_sheet.total_liabilities or Decimal("0")
-            
+            total_assets = Decimal(balance_sheet.total_assets or 0)
+            total_liabilities = Decimal(balance_sheet.total_liabilities or 0)
+
             if total_assets == 0:
                 return {
                     "z_score": Decimal("0"),
@@ -85,31 +85,31 @@ class RiskAssessmentService:
                 }
 
             # Working Capital = Current Assets - Current Liabilities
-            working_capital = (
-                (balance_sheet.current_assets or Decimal("0")) -
-                (balance_sheet.current_liabilities or Decimal("0"))
+            working_capital = Decimal(
+                (balance_sheet.current_assets or 0) -
+                (balance_sheet.current_liabilities or 0)
             )
 
             # Retained Earnings
-            retained_earnings = balance_sheet.retained_earnings or Decimal("0")
+            retained_earnings = Decimal(balance_sheet.retained_earnings or 0)
 
             # EBIT = Operating Income
-            ebit = income_statement.operating_income or Decimal("0")
+            ebit = Decimal(income_statement.operating_income or 0)
 
             # Sales = Revenue
-            sales = income_statement.revenue or Decimal("0")
+            sales = Decimal(income_statement.revenue or 0)
 
             # Market Value of Equity (use market cap if available, else book value)
             if market_cap:
                 market_value_equity = market_cap
             else:
-                market_value_equity = balance_sheet.total_equity or Decimal("0")
+                market_value_equity = Decimal(balance_sheet.total_equity or 0)
 
             # Calculate Z-Score components
             x1 = working_capital / total_assets if total_assets > 0 else Decimal("0")
             x2 = retained_earnings / total_assets if total_assets > 0 else Decimal("0")
             x3 = ebit / total_assets if total_assets > 0 else Decimal("0")
-            x4 = (market_value_equity / total_liabilities 
+            x4 = (market_value_equity / total_liabilities
                   if total_liabilities > 0 else Decimal("0"))
             x5 = sales / total_assets if total_assets > 0 else Decimal("0")
 
@@ -372,27 +372,27 @@ class RiskAssessmentService:
         debt_to_equity = financial_ratios.debt_to_equity or Decimal("0")
         interest_coverage = financial_ratios.interest_coverage or Decimal("999")
         
-        if debt_to_equity > Decimal("2.0"):
+        if debt_to_equity > Decimal("2.0"):  # type: ignore[operator]
             financial_risk = Decimal("80")
-        elif debt_to_equity > Decimal("1.0"):
+        elif debt_to_equity > Decimal("1.0"):  # type: ignore[operator]
             financial_risk = Decimal("50")
-        elif debt_to_equity > Decimal("0.5"):
+        elif debt_to_equity > Decimal("0.5"):  # type: ignore[operator]
             financial_risk = Decimal("30")
         else:
             financial_risk = Decimal("10")
 
-        if interest_coverage < Decimal("1.5"):
+        if interest_coverage < Decimal("1.5"):  # type: ignore[operator]
             financial_risk = min(financial_risk + Decimal("20"), Decimal("100"))
 
         # Operational Risk (based on profitability)
         operating_margin = financial_ratios.operating_margin or Decimal("0")
         roe = financial_ratios.roe or Decimal("0")
 
-        if operating_margin < Decimal("0"):
+        if operating_margin < Decimal("0"):  # type: ignore[operator]
             operational_risk = Decimal("80")
-        elif operating_margin < Decimal("0.05"):
+        elif operating_margin < Decimal("0.05"):  # type: ignore[operator]
             operational_risk = Decimal("60")
-        elif operating_margin < Decimal("0.15"):
+        elif operating_margin < Decimal("0.15"):  # type: ignore[operator]
             operational_risk = Decimal("30")
         else:
             operational_risk = Decimal("10")
@@ -445,7 +445,7 @@ class RiskAssessmentService:
             for key, weight in weights.items()
         )
 
-        return round(overall_score, 2)
+        return Decimal(str(round(overall_score, 2)))
 
     def get_risk_rating(self, overall_score: Decimal) -> str:
         """
@@ -470,7 +470,7 @@ class RiskAssessmentService:
         self,
         company_id: UUID,
         assessment_date: Optional[date] = None,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Comprehensive risk assessment with three scenarios.
 
@@ -535,6 +535,12 @@ class RiskAssessmentService:
             market_data = market_result.scalar_one_or_none()
 
             market_cap = market_data.market_cap if market_data else None
+
+            # Ensure we have required data
+            if balance_sheet is None or income_statement is None:
+                raise ValueError("Missing required financial statements")
+            if financial_ratios is None:
+                raise ValueError("Missing required financial ratios")
 
             # === NEUTRAL SCENARIO (Base Case) ===
             z_score_neutral = await self.calculate_altman_z_score(
@@ -616,7 +622,7 @@ class RiskAssessmentService:
 
             return {
                 "company_id": str(company_id),
-                "assessment_date": assessment_date.isoformat(),
+                "assessment_date": assessment_date.isoformat() if assessment_date else date.today().isoformat(),
                 "scenarios": {
                     "optimistic": {
                         "overall_risk_score": float(overall_score_optimistic),

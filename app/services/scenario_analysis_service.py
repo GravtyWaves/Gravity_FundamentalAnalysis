@@ -14,7 +14,7 @@ Applied to:
 
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from uuid import UUID
 import logging
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class ScenarioAnalysisService:
     """Service for scenario-based analysis."""
 
-    def __init__(self, db: AsyncSession, tenant_id: str):
+    def __init__(self, db: AsyncSession, tenant_id: UUID | str):
         """
         Initialize scenario analysis service.
 
@@ -45,9 +45,9 @@ class ScenarioAnalysisService:
 
     def generate_scenario_assumptions(
         self,
-        base_assumptions: Dict[str, any],
+        base_assumptions: Dict[str, Any],
         scenario_type: str,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Generate assumptions for different scenarios.
 
@@ -104,8 +104,8 @@ class ScenarioAnalysisService:
     async def analyze_valuation_scenarios(
         self,
         company_id: UUID,
-        base_dcf_params: Dict[str, any],
-    ) -> Dict[str, any]:
+        base_dcf_params: Dict[str, Any],
+    ) -> Dict[str, Any]:
         """
         Perform DCF valuation under three scenarios.
 
@@ -186,8 +186,8 @@ class ScenarioAnalysisService:
     async def analyze_comprehensive_scenarios(
         self,
         company_id: UUID,
-        dcf_params: Optional[Dict[str, any]] = None,
-    ) -> Dict[str, any]:
+        dcf_params: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """
         Comprehensive scenario analysis including valuation, risk, and projections.
 
@@ -235,9 +235,9 @@ class ScenarioAnalysisService:
 
     def _generate_recommendation(
         self,
-        valuation_scenarios: Dict[str, any],
-        risk_scenarios: Dict[str, any],
-    ) -> Dict[str, any]:
+        valuation_scenarios: Dict[str, Any],
+        risk_scenarios: Dict[str, Any],
+    ) -> Dict[str, Any]:
         """
         Generate investment recommendation based on scenarios.
 

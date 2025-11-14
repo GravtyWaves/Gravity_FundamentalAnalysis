@@ -132,17 +132,14 @@ class DynamicWeightsManager:
             pcf_ratio_weight=Decimal(str(weights['pcf_ratio'])),
             deployed_at=datetime.utcnow(),
             deployed_by=deployed_by,
+            training_accuracy=Decimal(str(training_metrics.get('training_accuracy', 0))) if training_metrics else None,
+            validation_accuracy=Decimal(str(training_metrics.get('validation_accuracy', 0))) if training_metrics else None,
+            backtest_mape=Decimal(str(training_metrics.get('backtest_mape', 0))) if training_metrics else None,
+            improvement_vs_previous=Decimal(str(training_metrics.get('improvement', 0))) if training_metrics else None,
+            training_samples=training_metrics.get('training_samples', 0) if training_metrics else None,
+            ab_test_passed=training_metrics.get('ab_test_passed', False) if training_metrics else None,
+            ab_test_p_value=Decimal(str(training_metrics.get('ab_test_p_value', 1.0))) if training_metrics else None,
         )
-        
-        # Add training metrics if provided
-        if training_metrics:
-            new_weights.training_accuracy = Decimal(str(training_metrics.get('training_accuracy', 0)))
-            new_weights.validation_accuracy = Decimal(str(training_metrics.get('validation_accuracy', 0)))
-            new_weights.backtest_mape = Decimal(str(training_metrics.get('backtest_mape', 0)))
-            new_weights.improvement_vs_previous = Decimal(str(training_metrics.get('improvement', 0)))
-            new_weights.training_samples = training_metrics.get('training_samples', 0)
-            new_weights.ab_test_passed = training_metrics.get('ab_test_passed', False)
-            new_weights.ab_test_p_value = Decimal(str(training_metrics.get('ab_test_p_value', 1.0)))
         
         self.db.add(new_weights)
         await self.db.commit()

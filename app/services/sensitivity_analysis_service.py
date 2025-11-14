@@ -12,7 +12,7 @@ Types of sensitivity analysis:
 
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 import logging
 import numpy as np
@@ -79,7 +79,7 @@ class SensitivityAnalysisService:
         variable: str,
         variation_range: Tuple[float, float] = (-0.30, 0.30),
         num_points: int = 11,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         One-way sensitivity analysis (Tornado chart data).
 
@@ -118,7 +118,7 @@ class SensitivityAnalysisService:
                     fcf=params.get("fcf", 100),
                     wacc=params.get("wacc", 0.10),
                     terminal_growth=params.get("terminal_growth", 0.025),
-                    years=params.get("years", 5),
+                    years=int(params.get("years", 5)),
                 )
 
                 # Calculate change from base
@@ -126,7 +126,7 @@ class SensitivityAnalysisService:
                     fcf=base_params.get("fcf", 100),
                     wacc=base_params.get("wacc", 0.10),
                     terminal_growth=base_params.get("terminal_growth", 0.025),
-                    years=base_params.get("years", 5),
+                    years=int(base_params.get("years", 5)),
                 )
                 
                 change_pct = ((enterprise_value - base_ev) / base_ev) * 100
@@ -160,7 +160,7 @@ class SensitivityAnalysisService:
         variable_y: str,
         variation_range: Tuple[float, float] = (-0.20, 0.20),
         num_points: int = 7,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Two-way sensitivity analysis (sensitivity table).
 
@@ -197,9 +197,9 @@ class SensitivityAnalysisService:
             )
 
             # Build sensitivity table
-            table = []
+            table: List[Dict[str, Any]] = []
             for val_y in variations_y:
-                row = {f"{variable_y}": round(float(val_y), 4)}
+                row: Dict[str, Any] = {f"{variable_y}": round(float(val_y), 4)}
                 row["values"] = []
                 
                 for val_x in variations_x:
@@ -211,7 +211,7 @@ class SensitivityAnalysisService:
                         fcf=params.get("fcf", 100),
                         wacc=params.get("wacc", 0.10),
                         terminal_growth=params.get("terminal_growth", 0.025),
-                        years=params.get("years", 5),
+                        years=int(params.get("years", 5)),
                     )
                     
                     row["values"].append(round(enterprise_value, 2))
@@ -223,7 +223,7 @@ class SensitivityAnalysisService:
                 fcf=base_params.get("fcf", 100),
                 wacc=base_params.get("wacc", 0.10),
                 terminal_growth=base_params.get("terminal_growth", 0.025),
-                years=base_params.get("years", 5),
+                years=int(base_params.get("years", 5)),
             )
 
             return {
@@ -249,7 +249,7 @@ class SensitivityAnalysisService:
         base_params: Dict[str, float],
         variable_distributions: Dict[str, Dict[str, float]],
         num_simulations: int = 10000,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Monte Carlo simulation for valuation.
 
@@ -297,7 +297,7 @@ class SensitivityAnalysisService:
                     fcf=params.get("fcf", 100),
                     wacc=params.get("wacc", 0.10),
                     terminal_growth=params.get("terminal_growth", 0.025),
-                    years=params.get("years", 5),
+                    years=int(params.get("years", 5)),
                 )
                 
                 simulated_values.append(enterprise_value)
@@ -350,7 +350,7 @@ class SensitivityAnalysisService:
         base_params: Dict[str, float],
         variables: List[str],
         variation_pct: float = 0.20,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Generate data for Tornado chart (ranked sensitivity).
 
@@ -370,7 +370,7 @@ class SensitivityAnalysisService:
                 fcf=base_params.get("fcf", 100),
                 wacc=base_params.get("wacc", 0.10),
                 terminal_growth=base_params.get("terminal_growth", 0.025),
-                years=base_params.get("years", 5),
+                years=int(base_params.get("years", 5)),
             )
 
             impacts = []
@@ -387,7 +387,7 @@ class SensitivityAnalysisService:
                     fcf=params_high.get("fcf", 100),
                     wacc=params_high.get("wacc", 0.10),
                     terminal_growth=params_high.get("terminal_growth", 0.025),
-                    years=params_high.get("years", 5),
+                    years=int(params_high.get("years", 5)),
                 )
 
                 # Calculate at -variation%
@@ -397,7 +397,7 @@ class SensitivityAnalysisService:
                     fcf=params_low.get("fcf", 100),
                     wacc=params_low.get("wacc", 0.10),
                     terminal_growth=params_low.get("terminal_growth", 0.025),
-                    years=params_low.get("years", 5),
+                    years=int(params_low.get("years", 5)),
                 )
 
                 # Calculate impact range

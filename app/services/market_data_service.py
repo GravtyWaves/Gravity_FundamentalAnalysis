@@ -54,10 +54,9 @@ class MarketDataService:
         Returns:
             List of created/updated market data records
         """
-        if end_date is None:
-            end_date = date.today()
+        end_date = end_date or date.today()
         if start_date is None:
-            start_date = end_date - timedelta(days=365)
+            start_date = date.today() - timedelta(days=365)
 
         try:
             logger.info(f"Syncing market data for {ticker} from {start_date} to {end_date}")
@@ -261,19 +260,25 @@ class MarketDataService:
         if len(market_data_list) == 0:
             return None
 
+        # Sort by date ascending for correct return calculation
+        market_data_list.sort(key=lambda x: x.date)
+
         prices = [float(md.close_price) for md in market_data_list]
-        volumes = [float(md.volume) for md in market_data_list if md.volume]
+        volumes = []
+        for md in market_data_list:
+            if md.volume is not None:
+                volumes.append(float(md.volume))
 
         import numpy as np
 
         return {
             "period_days": period_days,
-            "current_price": prices[0] if prices else None,  # Latest (first in desc order)
+            "current_price": prices[-1] if prices else None,  # Latest (last in asc order)
             "high": max(prices),
             "low": min(prices),
             "average": float(np.mean(prices)),
             "median": float(np.median(prices)),
             "std_dev": float(np.std(prices)),
             "volume_average": float(np.mean(volumes)) if volumes else None,
-            "total_return": ((prices[0] - prices[-1]) / prices[-1]) if len(prices) > 1 and prices[-1] > 0 else None,
+            "total_return": ((prices[-1] - prices[0]) / prices[0]) if len(prices) > 1 and prices[0] > 0 else None,
         }
