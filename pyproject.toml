@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "fundamental-analysis"
-version = "2.0.0"
-description = "AI-Powered Fundamental Analysis Microservice with ML Ensemble Valuation"
+version = "2.1.0"
+description = "AI-Powered Fundamental Analysis with Industry-Aware ML Ensemble Valuation"
 authors = ["Gravity Elite Team <team@gravity-microservices.com>"]
 license = "MIT"
 readme = "README.md"
