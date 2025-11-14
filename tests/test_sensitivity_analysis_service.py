@@ -7,6 +7,7 @@ Tests sensitivity analysis methods:
 - Monte Carlo simulation
 - Tornado chart ranked impacts
 """
+# pyright: reportArgumentType=false
 
 import pytest
 from decimal import Decimal

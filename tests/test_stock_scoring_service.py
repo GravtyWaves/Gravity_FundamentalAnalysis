@@ -10,6 +10,8 @@ Tests comprehensive fundamental scoring system covering:
 - Composite scoring and letter ratings
 - Multi-stock ranking
 """
+# pyright: reportArgumentType=false
+# type: ignore - Column[UUID] vs UUID type issues in tests
 
 import pytest
 from datetime import date

@@ -4,6 +4,8 @@ Unit tests for TrendAnalysisService.
 Tests revenue trends, profitability trends, ratio trends, CAGR calculations,
 linear regression, moving averages, and anomaly detection.
 """
+# pyright: reportArgumentType=false
+# type: ignore - Column[UUID] vs UUID type issues in tests
 
 import pytest
 from datetime import date
@@ -263,7 +265,7 @@ class TestRevenueTrendAnalysis:
         income_statements: List[IncomeStatement]
     ):
         """Test successful revenue trend analysis."""
-        result = await trend_service.analyze_revenue_trend(company.id)
+        result = await trend_service.analyze_revenue_trend(company.id  # type: ignore[arg-type])
         
         # Verify structure
         assert "company_id" in result
@@ -295,7 +297,7 @@ class TestRevenueTrendAnalysis:
         income_statements: List[IncomeStatement]
     ):
         """Test linear regression in revenue trend."""
-        result = await trend_service.analyze_revenue_trend(company.id)
+        result = await trend_service.analyze_revenue_trend(company.id  # type: ignore[arg-type])
         
         regression = result["regression_analysis"]
         
@@ -333,7 +335,7 @@ class TestRevenueTrendAnalysis:
         trend_service.db.add(new_company)
         await trend_service.db.commit()
         
-        result = await trend_service.analyze_revenue_trend(new_company.id)
+        result = await trend_service.analyze_revenue_trend(new_company.id  # type: ignore[arg-type])
         
         # Should return empty or minimal result
         assert result["revenue_data"] == []
@@ -352,7 +354,7 @@ class TestProfitabilityTrendAnalysis:
         financial_ratios: List[FinancialRatio]
     ):
         """Test successful profitability trend analysis."""
-        result = await trend_service.analyze_profitability_trends(company.id)
+        result = await trend_service.analyze_profitability_trends(company.id  # type: ignore[arg-type])
         
         # Verify structure
         assert "company_id" in result
@@ -380,7 +382,7 @@ class TestProfitabilityTrendAnalysis:
         financial_ratios: List[FinancialRatio]
     ):
         """Test ROE and ROA trend analysis."""
-        result = await trend_service.analyze_profitability_trends(company.id)
+        result = await trend_service.analyze_profitability_trends(company.id  # type: ignore[arg-type])
         
         returns = result["returns"]
         
@@ -402,7 +404,7 @@ class TestProfitabilityTrendAnalysis:
         financial_ratios: List[FinancialRatio]
     ):
         """Test trend detection in profitability analysis."""
-        result = await trend_service.analyze_profitability_trends(company.id)
+        result = await trend_service.analyze_profitability_trends(company.id  # type: ignore[arg-type])
         
         trends = result["trends"]
         
@@ -673,7 +675,7 @@ class TestMultiTenancy:
         )
         
         # Should not find company from different tenant
-        result = await service_other_tenant.analyze_revenue_trend(company.id)
+        result = await service_other_tenant.analyze_revenue_trend(company.id  # type: ignore[arg-type])
         
         # Should return empty or error
         assert result["revenue_data"] == []
@@ -694,7 +696,7 @@ class TestMultiTenancy:
             tenant_id=different_tenant
         )
         
-        result = await service_other_tenant.analyze_profitability_trends(company.id)
+        result = await service_other_tenant.analyze_profitability_trends(company.id  # type: ignore[arg-type])
         
         # Should not access data from different tenant
         assert result.get("margins", {}).get("gross_margin", []) == []

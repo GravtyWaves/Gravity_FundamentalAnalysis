@@ -8,6 +8,8 @@ Tests value driver analysis methods:
 - Capital efficiency drivers (asset turnover, working capital)
 - Waterfall analysis (period-over-period changes)
 """
+# pyright: reportArgumentType=false
+
 
 import pytest
 from datetime import date

@@ -4,6 +4,8 @@ Unit tests for ScenarioAnalysisService.
 Tests optimistic/neutral/pessimistic scenarios, probability-weighted valuations,
 investment recommendations, and comprehensive scenario analysis.
 """
+# pyright: reportArgumentType=false, reportCallIssue=false
+# type: ignore - Column[UUID] vs UUID and missing parameter type issues in tests
 
 import pytest
 from datetime import date

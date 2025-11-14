@@ -43,6 +43,33 @@ class TrendAnalysisService:
         self.db = db
         self.tenant_id = str(tenant_id) if isinstance(tenant_id, UUID) else tenant_id
 
+    def calculate_yoy_growth(
+        self,
+        previous_value: Decimal,
+        current_value: Decimal,
+    ) -> Optional[Decimal]:
+        """
+        Calculate Year-over-Year growth rate.
+
+        Formula: YoY Growth = (Current - Previous) / Previous
+
+        Args:
+            previous_value: Previous period value
+            current_value: Current period value
+
+        Returns:
+            Growth rate as decimal or None if invalid
+        """
+        if previous_value == 0:
+            return None if current_value == 0 else Decimal("999.9999")  # Infinite growth
+        
+        try:
+            growth = (current_value - previous_value) / previous_value
+            return Decimal(str(round(float(growth), 6)))
+        except Exception as e:
+            logger.error(f"Error calculating YoY growth: {e}")
+            return None
+
     def calculate_cagr(
         self,
         start_value: Decimal,
@@ -130,9 +157,27 @@ class TrendAnalysisService:
             "significance": "significant" if p_value_float < 0.05 else "not_significant",
         }
 
+    def perform_linear_regression(
+        self,
+        x_values: List[float],
+        y_values: List[float],
+    ) -> Dict[str, Any]:
+        """
+        Perform linear regression (alias for linear_regression with list input).
+
+        Args:
+            x_values: X values
+            y_values: Y values
+
+        Returns:
+            Dictionary with slope, intercept, r_squared, p_value
+        """
+        data_points = list(zip(x_values, y_values))
+        return self.linear_regression(data_points)
+
     def calculate_moving_average(
         self,
-        values: List[float],
+        values: Sequence[float],
         window: int = 3,
     ) -> List[float]:
         """
@@ -146,7 +191,7 @@ class TrendAnalysisService:
             List of moving averages
         """
         if len(values) < window:
-            return values
+            return list(values)
 
         moving_avgs = []
         for i in range(len(values)):
@@ -160,8 +205,9 @@ class TrendAnalysisService:
 
     def detect_anomalies(
         self,
-        values: List[float],
+        values: Sequence[float],
         threshold_std: float = 2.0,
+        threshold: Optional[float] = None,  # Alias for threshold_std for backward compatibility
     ) -> List[Dict[str, Any]]:
         """
         Detect anomalies using statistical methods.
@@ -169,10 +215,15 @@ class TrendAnalysisService:
         Args:
             values: List of values
             threshold_std: Number of standard deviations for anomaly threshold
+            threshold: Alias for threshold_std (backward compatibility)
 
         Returns:
             List of anomalies with indices and values
         """
+        # Use threshold if provided (backward compatibility)
+        if threshold is not None:
+            threshold_std = threshold
+            
         if len(values) < 3:
             return []
 

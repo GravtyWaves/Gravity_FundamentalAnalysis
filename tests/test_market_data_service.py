@@ -8,6 +8,8 @@ Tests market data management:
 - Price statistics
 - Multi-tenancy isolation
 """
+# pyright: reportArgumentType=false
+
 
 import pytest
 from datetime import date, timedelta
