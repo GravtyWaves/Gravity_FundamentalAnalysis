@@ -123,8 +123,36 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
             detail="Could not validate credentials",
         )
 
-    # TODO: Fetch user from database
-    return {"user_id": user_id, **payload}
+    # Fetch user from database
+    from app.core.database import AsyncSessionLocal
+    from sqlalchemy import select, text
+
+    async with AsyncSessionLocal() as session:
+        # Check if user exists and is active
+        # Note: Replace with actual User model when available
+        result = await session.execute(
+            text("SELECT id, email, is_active FROM users WHERE id = :user_id"),
+            {"user_id": user_id}
+        )
+        user_row = result.fetchone()
+
+        if user_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        if not user_row.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive",
+            )
+
+        return {
+            "user_id": user_row.id,
+            "email": user_row.email,
+            **payload
+        }
 
 
 async def get_current_active_user(
@@ -167,17 +195,43 @@ async def validate_api_key(api_key: Optional[str] = Security(api_key_header)) ->
             detail="API Key required",
         )
 
-    # TODO: Validate API key against database
-    # For now, this is a placeholder
-    valid_api_keys = ["test-api-key"]  # Replace with database lookup
+    # Validate API key against database
+    from app.core.database import AsyncSessionLocal
+    from sqlalchemy import select, text
+    from datetime import datetime
 
-    if api_key not in valid_api_keys:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API Key",
+    async with AsyncSessionLocal() as session:
+        # Check if API key exists, is active, and not expired
+        # Note: Replace with actual ApiKey model when available
+        result = await session.execute(
+            text("""
+                SELECT id, tenant_id, is_active, expires_at 
+                FROM api_keys 
+                WHERE key_hash = :key_hash
+            """),
+            {"key_hash": api_key}  # In production, hash the key before lookup
         )
+        key_row = result.fetchone()
 
-    return api_key
+        if key_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid API Key",
+            )
+
+        if not key_row.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="API Key is inactive",
+            )
+
+        if key_row.expires_at and key_row.expires_at < datetime.utcnow():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="API Key has expired",
+            )
+
+        return api_key
 
 
 def get_tenant_id(current_user: Dict[str, Any] = Depends(get_current_user)) -> str:

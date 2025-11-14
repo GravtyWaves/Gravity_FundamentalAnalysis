@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.core.config import settings
 
@@ -112,16 +113,47 @@ async def readiness_check() -> JSONResponse:
     Readiness check endpoint.
 
     Checks if the service is ready to accept traffic.
+    Validates database and Redis connectivity.
 
     Returns:
-        JSONResponse: Service readiness status
+        JSONResponse: Service readiness status with dependency checks
     """
-    # TODO: Add database and Redis connection checks
+    from app.core.database import engine
+    from app.core.redis_client import get_redis_client
+
+    checks = {
+        "database": "unknown",
+        "redis": "unknown",
+    }
+
+    # Check database connection
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        checks["database"] = "healthy"
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        checks["database"] = "unhealthy"
+
+    # Check Redis connection
+    try:
+        redis_client = await get_redis_client()
+        await redis_client.ping()
+        checks["redis"] = "healthy"
+    except Exception as e:
+        logger.error(f"Redis health check failed: {e}")
+        checks["redis"] = "unhealthy"
+
+    all_healthy = all(status == "healthy" for status in checks.values())
+    status_code = 200 if all_healthy else 503
+
     return JSONResponse(
+        status_code=status_code,
         content={
-            "status": "ready",
+            "status": "ready" if all_healthy else "not_ready",
             "service": settings.app_name,
-        }
+            "checks": checks,
+        },
     )
 
 

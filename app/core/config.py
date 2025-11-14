@@ -67,6 +67,20 @@ class Settings(BaseSettings):
     market_data_api_url: str | None = None
     market_data_api_key: str | None = None
 
+    # Data Collection Microservice
+    data_collection_service_url: str = Field(
+        default="http://localhost:8001",
+        description="URL of the Data Collection microservice"
+    )
+    data_collection_api_key: str | None = Field(
+        default=None,
+        description="API key for Data Collection microservice"
+    )
+    data_collection_timeout: float = Field(
+        default=30.0,
+        description="Timeout for Data Collection API calls in seconds"
+    )
+
     # Rate Limiting
     rate_limit_per_minute: int = 60
 

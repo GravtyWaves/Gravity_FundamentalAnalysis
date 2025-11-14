@@ -7,6 +7,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 
+class DataIntegrationError(Exception):
+    """Raised when data integration from external service fails."""
+    pass
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """
     Register global exception handlers.
