@@ -90,6 +90,13 @@ class Settings(BaseSettings):
     # CORS
     allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:8000"]
 
+    # External Microservices URLs (OPTIONAL - for data fetching)
+    market_data_service_url: str | None = Field(None, description="Market Data Service URL")
+    company_info_service_url: str | None = Field(None, description="Company Info Service URL")
+    industry_benchmarks_service_url: str | None = Field(None, description="Industry Benchmarks Service URL")
+    economic_indicators_service_url: str | None = Field(None, description="Economic Indicators Service URL")
+    news_sentiment_service_url: str | None = Field(None, description="News & Sentiment Service URL")
+
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | List[str]) -> List[str]:
@@ -97,6 +104,27 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
+    
+    # Make external service URLs accessible as uppercase attributes for backward compatibility
+    @property
+    def MARKET_DATA_SERVICE_URL(self) -> str | None:
+        return self.market_data_service_url
+    
+    @property
+    def COMPANY_INFO_SERVICE_URL(self) -> str | None:
+        return self.company_info_service_url
+    
+    @property
+    def INDUSTRY_BENCHMARKS_SERVICE_URL(self) -> str | None:
+        return self.industry_benchmarks_service_url
+    
+    @property
+    def ECONOMIC_INDICATORS_SERVICE_URL(self) -> str | None:
+        return self.economic_indicators_service_url
+    
+    @property
+    def NEWS_SENTIMENT_SERVICE_URL(self) -> str | None:
+        return self.news_sentiment_service_url
 
     # Kafka
     kafka_brokers: str = "localhost:9092"
