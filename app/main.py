@@ -169,7 +169,7 @@ async def readiness_check() -> JSONResponse:
     Readiness check endpoint (Kubernetes readiness probe).
 
     Checks if the service is ready to accept traffic.
-    Validates database, Redis connectivity, and ML model status.
+    Validates database, Redis/Cache, and ML model status.
     Returns 503 if ANY critical dependency is down.
 
     Returns:
@@ -177,13 +177,13 @@ async def readiness_check() -> JSONResponse:
                      Status code: 200 if ready, 503 if not ready
     """
     from app.core.database import engine
-    from app.core.redis_client import get_redis_client
+    from app.services.cache_service import get_cache_manager
     from app.services.ml_weight_optimizer import MLWeightOptimizer
     from app.core.database import AsyncSessionLocal
 
     checks = {
         "database": "unknown",
-        "redis": "unknown",
+        "cache": "unknown",
         "ml_model": "unknown",
     }
 
@@ -200,18 +200,19 @@ async def readiness_check() -> JSONResponse:
         )
         checks["database"] = "unhealthy"
 
-    # Check Redis connection
+    # Check Redis/Cache connection
+    cache_health = None
     try:
-        redis_client = await get_redis_client()
-        await redis_client.ping()
-        checks["redis"] = "healthy"
+        cache_manager = get_cache_manager()
+        cache_health = await cache_manager.health_check()
+        checks["cache"] = cache_health["status"]
     except Exception as e:
         logger.error(
-            "health_check_redis_failed",
+            "health_check_cache_failed",
             error=str(e),
             error_type=type(e).__name__,
         )
-        checks["redis"] = "unhealthy"
+        checks["cache"] = "unhealthy"
 
     # Check ML model status
     ml_metrics = None
@@ -229,11 +230,11 @@ async def readiness_check() -> JSONResponse:
         )
         checks["ml_model"] = "error"
 
-    # Service is ready only if BOTH database and Redis are healthy
+    # Service is ready only if BOTH database and cache are healthy
     # ML model is optional (can work with default weights)
     all_healthy = (
         checks["database"] == "healthy" and 
-        checks["redis"] == "healthy"
+        checks["cache"] == "healthy"
     )
     status_code = 200 if all_healthy else 503
     
@@ -247,6 +248,10 @@ async def readiness_check() -> JSONResponse:
         "timestamp": datetime.utcnow().isoformat(),
         "checks": checks,
     }
+    
+    # Include cache statistics if available
+    if cache_health and cache_health["status"] == "healthy":
+        response_content["cache_stats"] = cache_health.get("stats", {})
     
     # Include ML model metrics if available
     if ml_metrics:
