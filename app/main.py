@@ -40,6 +40,7 @@ Notes:               - Includes comprehensive health checks (/health, /health/re
 """
 
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import AsyncGenerator
 
 import structlog
@@ -55,6 +56,9 @@ from app.middleware.logging import LoggingMiddleware, setup_logging
 # Configure structured logging
 setup_logging()
 logger = structlog.get_logger()
+
+# Track application startup time for uptime calculation
+_startup_time: datetime = datetime.utcnow()
 
 
 @asynccontextmanager
@@ -114,17 +118,47 @@ register_exception_handlers(app)
 @app.get("/health", tags=["Health"])
 async def health_check() -> JSONResponse:
     """
-    Health check endpoint.
+    Basic health check endpoint (liveness probe).
+    
+    Returns simple OK if the application is running.
+    Use /health/ready for dependency checks.
 
     Returns:
         JSONResponse: Service health status
     """
+    uptime_seconds = (datetime.utcnow() - _startup_time).total_seconds()
+    
     return JSONResponse(
         content={
             "status": "healthy",
             "service": settings.app_name,
             "version": settings.app_version,
             "environment": settings.environment,
+            "uptime_seconds": round(uptime_seconds, 2),
+        }
+    )
+
+
+@app.get("/health/live", tags=["Health"])
+async def liveness_check() -> JSONResponse:
+    """
+    Liveness check endpoint (Kubernetes liveness probe).
+    
+    Returns OK if the application is alive and can handle requests.
+    Does not check dependencies - use /health/ready for that.
+
+    Returns:
+        JSONResponse: Service liveness status
+    """
+    uptime_seconds = (datetime.utcnow() - _startup_time).total_seconds()
+    
+    return JSONResponse(
+        content={
+            "status": "alive",
+            "service": settings.app_name,
+            "version": settings.app_version,
+            "uptime_seconds": round(uptime_seconds, 2),
+            "timestamp": datetime.utcnow().isoformat(),
         }
     )
 
@@ -132,13 +166,15 @@ async def health_check() -> JSONResponse:
 @app.get("/health/ready", tags=["Health"])
 async def readiness_check() -> JSONResponse:
     """
-    Readiness check endpoint.
+    Readiness check endpoint (Kubernetes readiness probe).
 
     Checks if the service is ready to accept traffic.
     Validates database, Redis connectivity, and ML model status.
+    Returns 503 if ANY critical dependency is down.
 
     Returns:
         JSONResponse: Service readiness status with dependency checks
+                     Status code: 200 if ready, 503 if not ready
     """
     from app.core.database import engine
     from app.core.redis_client import get_redis_client
@@ -157,7 +193,11 @@ async def readiness_check() -> JSONResponse:
             await conn.execute(text("SELECT 1"))
         checks["database"] = "healthy"
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error(
+            "health_check_database_failed",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         checks["database"] = "unhealthy"
 
     # Check Redis connection
@@ -166,7 +206,11 @@ async def readiness_check() -> JSONResponse:
         await redis_client.ping()
         checks["redis"] = "healthy"
     except Exception as e:
-        logger.error(f"Redis health check failed: {e}")
+        logger.error(
+            "health_check_redis_failed",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         checks["redis"] = "unhealthy"
 
     # Check ML model status
@@ -178,18 +222,29 @@ async def readiness_check() -> JSONResponse:
             ml_metrics = await optimizer.get_model_metrics()
             checks["ml_model"] = ml_metrics["status"]
     except Exception as e:
-        logger.error(f"ML model health check failed: {e}")
+        logger.error(
+            "health_check_ml_model_failed",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         checks["ml_model"] = "error"
 
+    # Service is ready only if BOTH database and Redis are healthy
+    # ML model is optional (can work with default weights)
     all_healthy = (
         checks["database"] == "healthy" and 
         checks["redis"] == "healthy"
     )
     status_code = 200 if all_healthy else 503
+    
+    uptime_seconds = (datetime.utcnow() - _startup_time).total_seconds()
 
     response_content = {
         "status": "ready" if all_healthy else "not_ready",
         "service": settings.app_name,
+        "version": settings.app_version,
+        "uptime_seconds": round(uptime_seconds, 2),
+        "timestamp": datetime.utcnow().isoformat(),
         "checks": checks,
     }
     
