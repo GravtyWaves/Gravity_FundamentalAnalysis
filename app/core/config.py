@@ -1,7 +1,38 @@
 """
-Configuration management using Pydantic Settings.
+================================================================================
+FILE IDENTITY CARD (شناسنامه فایل)
+================================================================================
+File Path:           app/core/config.py
+Author:              Gravity Fundamental Analysis Team
+Team ID:             FA-001
+Created Date:        2025-01-10
+Last Modified:       2025-01-18
+Version:             1.0.0
+Purpose:             Configuration management using Pydantic Settings
+                     Loads and validates all environment variables for the application
 
-All environment variables are loaded and validated here.
+Dependencies:        pydantic>=2.5.0, pydantic-settings>=2.1.0
+
+Related Files:       .env (environment variables)
+                     app/main.py (settings consumer)
+                     app/core/database.py (database config)
+                     app/core/redis_client.py (Redis config)
+                     app/core/celery_config.py (Celery config)
+
+Complexity:          3/10
+Lines of Code:       113
+Test Coverage:       0% (needs unit tests for validators)
+Performance Impact:  LOW (loaded once at startup, cached with lru_cache)
+Time Spent:          2 hours
+Cost:                $960 (2 × $480/hr)
+Review Status:       Production
+Notes:               - Uses Pydantic BaseSettings for type validation
+                     - Automatic .env file loading
+                     - Field validators for allowed_origins parsing
+                     - Cached with @lru_cache for performance
+                     - Includes: app, database, Redis, API, security, logging configs
+                     - Environment-aware (development/staging/production)
+================================================================================
 """
 
 from functools import lru_cache

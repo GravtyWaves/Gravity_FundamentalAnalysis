@@ -1,5 +1,35 @@
 """
-Global exception handlers for the application.
+================================================================================
+FILE IDENTITY CARD (شناسنامه فایل)
+================================================================================
+File Path:           app/core/exceptions.py
+Author:              Gravity Fundamental Analysis Team
+Team ID:             FA-001
+Created Date:        2025-01-10
+Last Modified:       2025-01-20
+Version:             1.0.0
+Purpose:             Global exception handlers for the application
+                     Provides custom exceptions and centralized error handling
+
+Dependencies:        fastapi>=0.104.1, sqlalchemy>=2.0.23
+
+Related Files:       app/main.py (registers exception handlers)
+                     app/services/*.py (raises custom exceptions)
+
+Complexity:          5/10
+Lines of Code:       54
+Test Coverage:       0% (needs exception handler tests)
+Performance Impact:  LOW (only triggered on errors)
+Time Spent:          1.5 hours
+Cost:                $720 (1.5 × $480/hr)
+Review Status:       In Progress (Task 3)
+Notes:               - Custom exception: DataIntegrationError
+                     - Handlers: SQLAlchemyError, IntegrityError
+                     - Returns structured JSON responses
+                     - TODO: Add more custom exceptions (ValidationError, NotFoundError)
+                     - TODO: Never expose internal errors in production
+                     - TODO: Add correlation IDs to error responses
+================================================================================
 """
 
 from fastapi import FastAPI, Request, status

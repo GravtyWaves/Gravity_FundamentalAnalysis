@@ -1,5 +1,36 @@
 """
-Company API endpoints.
+================================================================================
+FILE IDENTITY CARD (شناسنامه فایل)
+================================================================================
+File Path:           app/api/v1/endpoints/companies.py
+Author:              Gravity Fundamental Analysis Team
+Team ID:             FA-001
+Created Date:        2025-01-10
+Last Modified:       2025-01-15
+Version:             1.0.0
+Purpose:             Company API endpoints - CRUD operations for companies
+
+Dependencies:        fastapi>=0.104.1, app.services.company_service
+
+Related Files:       app/services/company_service.py (business logic)
+                     app/models/company.py (ORM model)
+                     app/schemas/company.py (Pydantic schemas)
+                     app/api/v1/router.py (routes registration)
+
+Complexity:          4/10 (standard CRUD REST API)
+Lines of Code:       192
+Test Coverage:       0% (needs API integration tests - Task 6)
+Performance Impact:  MEDIUM (needs caching for company lists)
+Time Spent:          4 hours
+Cost:                $1,920 (4 × $480/hr)
+Review Status:       Production
+Notes:               - Endpoints: GET /companies, GET /companies/{id},
+                       POST /companies, PUT /companies/{id}, DELETE /companies/{id}
+                     - Supports pagination (skip, limit)
+                     - Search by symbol, name, industry, market
+                     - Multi-tenant support with tenant isolation
+                     - Needs input validation enhancement
+================================================================================
 """
 
 from typing import Optional

@@ -1,5 +1,36 @@
 """
-Pytest configuration and fixtures.
+================================================================================
+FILE IDENTITY CARD (شناسنامه فایل)
+================================================================================
+File Path:           tests/conftest.py
+Author:              Gravity Fundamental Analysis Team
+Team ID:             FA-001
+Created Date:        2025-01-10
+Last Modified:       2025-01-15
+Version:             1.0.0
+Purpose:             Pytest configuration and shared test fixtures
+                     Provides database sessions, test client, sample data
+
+Dependencies:        pytest>=7.4.3, pytest-asyncio>=0.21.1, httpx>=0.25.1,
+                     sqlalchemy>=2.0.23
+
+Related Files:       tests/*.py (all test files)
+                     app/core/database.py (database setup)
+                     app/main.py (FastAPI app)
+
+Complexity:          5/10 (async fixtures, database setup/teardown)
+Lines of Code:       128
+Test Coverage:       N/A (test infrastructure)
+Performance Impact:  LOW (test setup only)
+Time Spent:          3 hours
+Cost:                $1,440 (3 × $480/hr)
+Review Status:       Production
+Notes:               - Fixtures: db_session, test_client, test_company
+                     - Uses in-memory SQLite for fast tests
+                     - Async session support with pytest-asyncio
+                     - Proper cleanup with yield fixtures
+                     - Needs more fixtures (sample financial statements, ratios)
+================================================================================
 """
 
 import asyncio

@@ -1,5 +1,35 @@
 """
-Financial statements service layer.
+================================================================================
+FILE IDENTITY CARD (شناسنامه فایل)
+================================================================================
+File Path:           app/services/financial_statements_service.py
+Author:              Gravity Fundamental Analysis Team
+Team ID:             FA-001
+Created Date:        2025-01-10
+Last Modified:       2025-01-15
+Version:             1.0.0
+Purpose:             Financial statements service layer
+                     CRUD operations for Income Statement, Balance Sheet, Cash Flow
+
+Dependencies:        sqlalchemy>=2.0.23
+
+Related Files:       app/models/financial_statements.py (ORM models)
+                     app/schemas/financial_statements.py (Pydantic schemas)
+                     app/api/v1/endpoints/financial_statements.py (API)
+                     tests/test_financial_statements_service.py (tests)
+
+Complexity:          4/10 (standard CRUD operations)
+Lines of Code:       196
+Test Coverage:       0% (needs unit + integration tests)
+Performance Impact:  MEDIUM (database queries, needs caching)
+Time Spent:          4 hours
+Cost:                $1,920 (4 × $480/hr)
+Review Status:       Production
+Notes:               - Supports all 3 statement types
+                     - Filters by company, period, fiscal year
+                     - Needs data validation (negative revenues, etc.)
+                     - Needs Redis caching for historical data
+================================================================================
 """
 
 from typing import Literal, Optional

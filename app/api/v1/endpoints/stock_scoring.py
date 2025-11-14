@@ -1,11 +1,37 @@
 """
-Stock Scoring API endpoints.
+================================================================================
+FILE IDENTITY CARD (شناسنامه فایل)
+================================================================================
+File Path:           app/api/v1/endpoints/stock_scoring.py
+Author:              Gravity Fundamental Analysis Team
+Team ID:             FA-001
+Created Date:        2025-01-11
+Last Modified:       2025-01-20
+Version:             2.0.0
+Purpose:             Stock Scoring API endpoints
+                     Provides fundamental analysis scoring (0-100) with ML weights
 
-Provides fundamental analysis scoring (0-100 scale) with ML-optimized weights.
-Daily score calculation via Celery scheduled tasks.
+Dependencies:        fastapi>=0.104.1, app.services.stock_scoring_service
 
-NOTE: Ranking functionality moved to separate Ranking microservice.
-This microservice focuses solely on fundamental analysis and scoring.
+Related Files:       app/services/stock_scoring_service.py (business logic)
+                     app/services/ml_weight_optimizer.py (ML weights)
+                     app/tasks/scoring_tasks.py (Celery tasks)
+                     app/api/v1/router.py (routes registration)
+
+Complexity:          5/10 (REST API, validation, error handling)
+Lines of Code:       217
+Test Coverage:       0% (needs API integration tests - Task 6)
+Performance Impact:  HIGH (public API, needs rate limiting)
+Time Spent:          6 hours
+Cost:                $2,880 (6 × $480/hr)
+Review Status:       Production
+Notes:               - Endpoints: GET /stocks/{id}/score, POST /stocks/batch-score
+                     - Returns: composite_score, dimension_scores, ml_confidence
+                     - Supports tenant isolation via x-tenant-id header
+                     - Daily auto-calculation via Celery tasks
+                     - Needs Redis caching (Task 5)
+                     - Needs rate limiting (Task 11)
+================================================================================
 """
 
 from typing import List, Optional
