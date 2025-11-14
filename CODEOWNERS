@@ -1,0 +1,38 @@
+# Gravity Fundamental Analysis Microservice Codeowners
+
+# Default owners for everything in the repo
+* @GravtyWaves
+
+# Python code
+*.py @Dr-Dmitri-Volkov @Elena-Volkov
+
+# API endpoints
+app/api/ @Elena-Volkov @Dr-Dmitri-Volkov
+
+# Financial analysis
+app/services/analysis_service.py @Dr-Rebecca-Fischer
+app/services/valuation_service.py @Dr-Rebecca-Fischer
+app/services/risk_service.py @Dr-Rebecca-Fischer
+
+# Database models and migrations
+app/models/ @Dr-Aisha-Patel
+alembic/ @Dr-Aisha-Patel
+
+# Security
+app/core/security.py @Michael-Rodriguez
+
+# Testing
+tests/ @Joao-Silva
+
+# DevOps and infrastructure
+docker/ @Lars-Bjorkman
+kubernetes/ @Lars-Bjorkman
+.github/workflows/ @Lars-Bjorkman
+
+# Documentation
+docs/ @Dr-Sarah-Chen
+*.md @Dr-Sarah-Chen
+
+# Configuration
+pyproject.toml @Dr-Dmitri-Volkov
+.pre-commit-config.yaml @Marcus-Chen
