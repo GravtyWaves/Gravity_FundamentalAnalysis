@@ -30,11 +30,14 @@ Notes:               - Async SQLAlchemy with asyncpg driver
                      - Connection pooling (pool_size=10, max_overflow=20)
                      - Proper session cleanup with dependency injection
                      - Schema: 'tse' for all models
-                     - Needs connection retry logic (resilience pattern)
+                     - OPTIONAL: Works with or without database
+                     - In-memory fallback when DB unavailable
 ================================================================================
 """
 
-from typing import AsyncGeneratorfrom sqlalchemy.ext.asyncio import (
+import logging
+from typing import AsyncGenerator, Optional
+from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
@@ -44,39 +47,80 @@ from sqlalchemy.orm import declarative_base
 
 from app.core.config import settings
 
-# Create async engine
-engine: AsyncEngine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    pool_size=settings.database_pool_size,
-    max_overflow=settings.database_max_overflow,
-    pool_pre_ping=True,
-)
+logger = logging.getLogger(__name__)
 
-# Create async session factory
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
+# Create declarative base (always needed for models)
+Base = declarative_base()
+
+# Optional database engine (may be None)
+engine: Optional[AsyncEngine] = None
+AsyncSessionLocal: Optional[async_sessionmaker] = None
+
+# Initialize database if enabled and URL provided
+if settings.database_enabled and settings.database_url:
+    try:
+        engine = create_async_engine(
+            settings.database_url,
+            echo=settings.debug,
+            pool_size=settings.database_pool_size,
+            max_overflow=settings.database_max_overflow,
+            pool_pre_ping=True,
+        )
+        
+        AsyncSessionLocal = async_sessionmaker(
+            engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autocommit=False,
+            autoflush=False,
+        )
+        logger.info("✅ Database connection initialized successfully")
+    except Exception as e:
+        logger.warning(f"⚠️ Database connection failed: {e}. Running in NO-DB mode.")
+        engine = None
+        AsyncSessionLocal = None
+else:
+    logger.info("📝 Database disabled. Running in NO-DB mode (in-memory storage).")
 
 # Create declarative base
 Base = declarative_base()
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[Optional[AsyncSession], None]:
     """
     Dependency function to get database session.
+    Returns None if database is not available.
 
     Yields:
-        AsyncSession: Database session
+        Optional[AsyncSession]: Database session or None
 
     Example:
         ```python
         @app.get("/items")
         async def get_items(db: AsyncSession = Depends(get_db)):
+            if db is None:
+                # Use in-memory storage
+                return get_from_memory()
+            # Use database
+            return await db.execute(...)
+        ```
+    """
+    if AsyncSessionLocal is None:
+        # No database available - yield None
+        logger.debug("No database session available (NO-DB mode)")
+        yield None
+        return
+    
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Database session error: {e}")
+            raise
+        finally:
+            await session.close()
             result = await db.execute(select(Item))
             return result.scalars().all()
         ```

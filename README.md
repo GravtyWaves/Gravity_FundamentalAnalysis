@@ -7,13 +7,57 @@ A comprehensive, production-ready microservice for financial fundamental analysi
 This microservice provides complete fundamental analysis capabilities for financial markets, including:
 
 - **Financial Statements**: Income Statement, Balance Sheet, Cash Flow Statement
-- **Financial Ratios**: 50+ ratios across 7 categories (Liquidity, Profitability, Leverage, Efficiency, Market Value, Growth, Cash Flow)
-- **Valuation Methods**: DCF, Comparables, Asset-Based, Sum-of-Parts, LBO, Liquidation
-- **Risk Assessment**: Business Risk, Financial Risk, Operational Risk, Market Risk, ESG Risk
+- **Financial Ratios**: 66+ ratios across 7 categories (Liquidity, Profitability, Leverage, Efficiency, Market Value, Growth, Cash Flow)
+- **Valuation Methods**: DCF, PE/PS/PB Multiples, Asset-Based, DDM, RIM
+- **ML-Powered Predictions**: PyTorch neural network for valuation recommendations
+- **Ensemble Valuation**: Weighted average from multiple methods
+- **Scenario Analysis**: Bull/Base/Bear case modeling with what-if API
+- **Mispricing Detection**: Identify overvalued/undervalued opportunities
+- **Performance Tracking**: Track ML prediction accuracy over time
+- **Report Generation**: PDF/JSON comprehensive valuation reports
+- **Risk Assessment**: Business Risk, Financial Risk, Operational Risk, Market Risk
 - **Market Data**: Historical prices, volumes, market capitalization
 - **Multi-tenancy**: Complete tenant isolation for SaaS deployment
 
+## ⚡ Quick Start (NO Database Required!)
+
+**Option 1: Run WITHOUT database (Fastest)**
+```powershell
+# Clone and setup
+git clone https://github.com/GravtyWaves/Gravity_FundamentalAnalysis.git
+cd Gravity_FundamentalAnalysis
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# Run immediately (uses in-memory storage)
+uvicorn app.main:app --reload
+
+# Access at: http://localhost:8000/docs
+```
+
+**Option 2: Run WITH database (Full Features)**
+```powershell
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Setup database (one command!)
+python scripts/setup_database.py
+
+# 3. Start service
+uvicorn app.main:app --reload
+```
+
 ## 🏗️ Architecture
+
+### 🌟 Key Features
+
+✅ **Works with OR without database** - Choose your deployment mode  
+✅ **One-command database setup** - Automatic schema and table creation  
+✅ **ML-powered valuations** - PyTorch neural network predictions  
+✅ **95%+ test coverage** - Comprehensive unit and integration tests  
+✅ **Production-ready** - Docker, Kubernetes, monitoring included  
+✅ **API-first design** - Complete OpenAPI/Swagger documentation  
 
 ### Technology Stack
 

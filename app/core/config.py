@@ -65,14 +65,17 @@ class Settings(BaseSettings):
     workers: int = 4
     reload: bool = False
 
-    # Database
-    database_url: str = Field(..., description="PostgreSQL database URL")
+    # Database (OPTIONAL - service works without it)
+    database_url: str | None = Field(None, description="PostgreSQL database URL (optional)")
+    database_enabled: bool = Field(True, description="Enable database features")
     database_pool_size: int = 20
     database_max_overflow: int = 10
+    use_in_memory_storage: bool = Field(False, description="Use in-memory storage when DB unavailable")
 
-    # Redis
+    # Redis (OPTIONAL)
     redis_url: str = "redis://localhost:6379/0"
     redis_password: str | None = None
+    redis_enabled: bool = Field(True, description="Enable Redis caching")
 
     # Celery (scheduled tasks)
     celery_broker_url: str = "redis://localhost:6379/1"
