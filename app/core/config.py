@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     redis_password: str | None = None
 
+    # Celery (scheduled tasks)
+    celery_broker_url: str = "redis://localhost:6379/1"
+    celery_result_backend: str = "redis://localhost:6379/2"
+    default_tenant_id: str = "default_tenant"
+
     # Security
     secret_key: str = Field(..., description="Secret key for JWT encoding")
     algorithm: str = "HS256"

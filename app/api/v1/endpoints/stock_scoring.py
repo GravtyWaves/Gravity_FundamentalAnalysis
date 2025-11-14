@@ -1,5 +1,11 @@
 """
-Stock Scoring and Ranking API endpoints.
+Stock Scoring API endpoints.
+
+Provides fundamental analysis scoring (0-100 scale) with ML-optimized weights.
+Daily score calculation via Celery scheduled tasks.
+
+NOTE: Ranking functionality moved to separate Ranking microservice.
+This microservice focuses solely on fundamental analysis and scoring.
 """
 
 from typing import List, Optional
@@ -23,12 +29,15 @@ async def get_stock_score(
     """
     Calculate comprehensive fundamental score for a stock.
 
-    **Scoring Dimensions (weighted):**
-    - **Valuation (25%)**: P/E, P/B, PEG, EV/EBITDA ratios
-    - **Profitability (20%)**: ROE, ROA, Net Margin, Operating Margin
-    - **Growth (20%)**: Revenue, Earnings, Book Value growth
-    - **Financial Health (20%)**: Current Ratio, Quick Ratio, Debt/Equity, Interest Coverage
-    - **Risk (15%)**: Altman Z-Score, Beta, Volatility
+    **Scoring Dimensions (ML-optimized weights):**
+    - **Valuation**: P/E, P/B, PEG, EV/EBITDA ratios
+    - **Profitability**: ROE, ROA, Net Margin, Operating Margin
+    - **Growth**: Revenue, Earnings, Book Value growth
+    - **Financial Health**: Current Ratio, Quick Ratio, Debt/Equity, Interest Coverage
+    - **Risk**: Altman Z-Score, Beta, Volatility
+
+    **Weights are dynamically optimized using machine learning models** that analyze
+    historical stock performance correlation with fundamental factors.
 
     **Score Range:** 0-100
 
@@ -45,8 +54,12 @@ async def get_stock_score(
     **Returns:**
     - Composite score (0-100)
     - Letter rating (A+ to F)
+    - ML-optimized weights used
     - Individual dimension scores and breakdowns
     - Calculation date
+
+    **Note:** Scores are calculated daily via scheduled tasks.
+    Use GET /health endpoint to check last calculation time.
     """
     try:
         service = StockScoringService(db, x_tenant_id)
@@ -58,44 +71,9 @@ async def get_stock_score(
         raise HTTPException(status_code=500, detail=f"Error calculating stock score: {str(e)}")
 
 
-@router.post("/rank")
-async def rank_stocks(
-    company_ids: Optional[List[UUID]] = Query(None),
-    min_score: Optional[float] = Query(None, ge=0, le=100),
-    x_tenant_id: str = Header(..., alias="X-Tenant-ID"),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Rank stocks by fundamental score.
-
-    **Query Parameters:**
-    - **company_ids** (optional): List of company UUIDs to rank. If not provided, ranks all companies in tenant.
-    - **min_score** (optional): Minimum score filter (0-100). Only stocks with score >= min_score are returned.
-
-    **Returns:**
-    - List of stocks sorted by composite score (descending)
-    - Each stock includes:
-      - Rank (1 = highest score)
-      - Company ID, ticker, name
-      - Composite score and rating
-      - Individual dimension scores
-
-    **Example:**
-    ```
-    GET /api/v1/stock-scoring/rank?min_score=60
-    ```
-    Returns only stocks with score >= 60, ranked from highest to lowest.
-    """
-    try:
-        service = StockScoringService(db, x_tenant_id)
-        result = await service.rank_stocks(company_ids, min_score)
-        return {
-            "status": "success",
-            "total_stocks": len(result),
-            "rankings": result,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error ranking stocks: {str(e)}")
+# REMOVED: /rank endpoint - Ranking functionality moved to separate microservice
+# This microservice focuses on fundamental analysis and scoring only.
+# For stock ranking, use the dedicated Ranking Microservice API.
 
 
 @router.get("/{company_id}/valuation-score")

@@ -24,15 +24,21 @@ from app.models.ratios import FinancialRatio
 from app.models.valuation_risk import Valuation
 from app.services.ratio_calculation_service import RatioCalculationService
 from app.services.risk_assessment_service import RiskAssessmentService
+from app.services.ml_weight_optimizer import MLWeightOptimizer
 
 logger = logging.getLogger(__name__)
 
 
 class StockScoringService:
-    """Service for stock scoring and ranking."""
+    """Service for stock scoring and ranking with ML-optimized weights.
+    
+    Scoring weights are dynamically calculated using machine learning models
+    that analyze historical stock performance correlation with fundamental factors.
+    Weights are updated daily via Celery scheduled tasks.
+    """
 
-    # Scoring weights (total = 100%)
-    WEIGHTS = {
+    # Default weights (fallback when ML model not available)
+    DEFAULT_WEIGHTS = {
         "valuation": 0.25,      # 25%
         "profitability": 0.20,  # 20%
         "growth": 0.20,         # 20%
@@ -40,18 +46,40 @@ class StockScoringService:
         "risk": 0.15,           # 15%
     }
 
-    def __init__(self, db: AsyncSession, tenant_id: str):
+    def __init__(self, db: AsyncSession, tenant_id: str, use_ml_weights: bool = True):
         """
         Initialize stock scoring service.
 
         Args:
             db: Database session
             tenant_id: Current tenant ID
+            use_ml_weights: If True, use ML-optimized weights. If False, use default weights.
         """
         self.db = db
         self.tenant_id = str(tenant_id) if isinstance(tenant_id, UUID) else tenant_id
         self.ratio_service = RatioCalculationService(db, tenant_id)
         self.risk_service = RiskAssessmentService(db, tenant_id)
+        self.ml_optimizer = MLWeightOptimizer(db, tenant_id) if use_ml_weights else None
+        self._weights_cache: Optional[Dict[str, float]] = None
+    
+    async def get_weights(self, sector: Optional[str] = None) -> Dict[str, float]:
+        """
+        Get scoring weights (ML-optimized or default).
+        
+        Args:
+            sector: Optional sector filter for sector-specific weights
+            
+        Returns:
+            Dictionary of dimension weights
+        """
+        if self.ml_optimizer is None:
+            return self.DEFAULT_WEIGHTS.copy()
+        
+        # Cache weights for performance (refresh daily via Celery)
+        if self._weights_cache is None:
+            self._weights_cache = await self.ml_optimizer.get_optimized_weights(sector)
+        
+        return self._weights_cache
 
     async def calculate_valuation_score(
         self,
@@ -400,13 +428,16 @@ class StockScoringService:
             )
             risk_score, risk_breakdown = await self.calculate_risk_score(company_id)
 
+            # Get ML-optimized weights (or default weights if ML not available)
+            weights = await self.get_weights()
+
             # Calculate weighted composite score
             composite_score = (
-                valuation_score * self.WEIGHTS["valuation"] +
-                profitability_score * self.WEIGHTS["profitability"] +
-                growth_score * self.WEIGHTS["growth"] +
-                financial_health_score * self.WEIGHTS["financial_health"] +
-                risk_score * self.WEIGHTS["risk"]
+                valuation_score * weights["valuation"] +
+                profitability_score * weights["profitability"] +
+                growth_score * weights["growth"] +
+                financial_health_score * weights["financial_health"] +
+                risk_score * weights["risk"]
             )
 
             # Determine rating
@@ -418,30 +449,32 @@ class StockScoringService:
                 "calculation_date": date.today().isoformat(),
                 "composite_score": round(composite_score, 2),
                 "rating": rating,
+                "weights_used": weights,
+                "ml_optimized": self.ml_optimizer is not None,
                 "dimension_scores": {
                     "valuation": {
                         "score": round(valuation_score, 2),
-                        "weight": self.WEIGHTS["valuation"],
+                        "weight": weights["valuation"],
                         "breakdown": valuation_breakdown,
                     },
                     "profitability": {
                         "score": round(profitability_score, 2),
-                        "weight": self.WEIGHTS["profitability"],
+                        "weight": weights["profitability"],
                         "breakdown": profitability_breakdown,
                     },
                     "growth": {
                         "score": round(growth_score, 2),
-                        "weight": self.WEIGHTS["growth"],
+                        "weight": weights["growth"],
                         "breakdown": growth_breakdown,
                     },
                     "financial_health": {
                         "score": round(financial_health_score, 2),
-                        "weight": self.WEIGHTS["financial_health"],
+                        "weight": weights["financial_health"],
                         "breakdown": financial_health_breakdown,
                     },
                     "risk": {
                         "score": round(risk_score, 2),
-                        "weight": self.WEIGHTS["risk"],
+                        "weight": weights["risk"],
                         "breakdown": risk_breakdown,
                     },
                 },
