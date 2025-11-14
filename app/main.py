@@ -50,26 +50,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.core.config import settings
+from app.middleware.logging import LoggingMiddleware, setup_logging
 
 # Configure structured logging
-import logging
-
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer() if settings.log_format == "json"
-        else structlog.dev.ConsoleRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(
-        getattr(logging, settings.log_level.upper(), logging.INFO)
-    ),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=False,
-)
-
+setup_logging()
 logger = structlog.get_logger()
 
 
@@ -99,6 +83,9 @@ app = FastAPI(
     openapi_url=f"{settings.api_v1_prefix}/openapi.json",
     lifespan=lifespan,
 )
+
+# Add logging middleware (must be added first for proper request tracking)
+app.add_middleware(LoggingMiddleware)
 
 # Add CORS middleware
 app.add_middleware(
