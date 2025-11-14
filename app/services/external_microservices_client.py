@@ -34,7 +34,7 @@ Notes:               - Automatic retry with exponential backoff
 
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Type
 from uuid import UUID
 import logging
 from functools import lru_cache
@@ -71,7 +71,7 @@ class CircuitBreaker:
         self,
         failure_threshold: int = 5,
         timeout: int = 60,
-        expected_exception: type = httpx.HTTPError,
+        expected_exception: Type[Exception] = httpx.HTTPError,
     ):
         self.failure_threshold = failure_threshold
         self.timeout = timeout
@@ -136,7 +136,8 @@ class ExternalMicroservicesClient:
         Args:
             settings: Application settings (service URLs)
         """
-        self.settings = settings or Settings()
+        from app.core.config import settings as default_settings
+        self.settings = settings or default_settings
         self.client = httpx.AsyncClient(timeout=30.0)
         
         # Circuit breakers for each service
