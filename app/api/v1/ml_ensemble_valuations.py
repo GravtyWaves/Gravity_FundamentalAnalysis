@@ -32,25 +32,36 @@ Notes:               - RESTful design
 """
 
 from datetime import date
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, Generic, List, Optional, TypeVar
 from uuid import UUID
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
+from pydantic.generics import GenericModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.core.exceptions import (
     ResourceNotFoundError,
     ValidationError as AppValidationError,
 )
-from app.schemas.base import ApiResponse
+from app.core.database import get_db
 from app.services.ml.intelligent_ensemble_engine import IntelligentEnsembleEngine
 from app.services.ml.trend_analysis_service import TrendAnalysisService
 from app.services.ml.industry_aware_trainer import IndustryAwareTrainer
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+class ApiResponse(GenericModel, Generic[T]):
+    """Standard API response wrapper."""
+    success: bool
+    message_fa: str
+    message_en: str
+    data: Optional[T] = None
+
 
 router = APIRouter(prefix="/ml-ensemble", tags=["ML Ensemble Valuations"])
 

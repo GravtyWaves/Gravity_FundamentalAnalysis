@@ -35,7 +35,7 @@ Notes:               - Industry-specific weight optimization
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional, Tuple, Set, Any
 from uuid import UUID
 from dataclasses import dataclass
 from collections import defaultdict
