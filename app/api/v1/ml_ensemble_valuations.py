@@ -42,7 +42,7 @@ from pydantic.generics import GenericModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
-    ResourceNotFoundError,
+    NotFoundError,
     ValidationError as AppValidationError,
 )
 from app.core.database import get_db
@@ -438,7 +438,7 @@ async def ml_ensemble_valuation(
             data=response_data,
         )
         
-    except ResourceNotFoundError as e:
+    except NotFoundError as e:
         logger.error(f"Resource not found: {e}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
