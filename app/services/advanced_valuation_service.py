@@ -73,13 +73,13 @@ class AdvancedValuationService:
     15. H-Model (Two-Stage Growth)
     """
 
-    def __init__(self, db: AsyncSession, tenant_id: UUID):
+    def __init__(self, db: AsyncSession, tenant_id: UUID | str):
         """
         Initialize advanced valuation service.
 
         Args:
             db: Database session
-            tenant_id: Current tenant ID for multi-tenancy
+            tenant_id: Current tenant ID for multi-tenancy (UUID or str)
         """
         self.db = db
         self.tenant_id = str(tenant_id) if isinstance(tenant_id, UUID) else tenant_id

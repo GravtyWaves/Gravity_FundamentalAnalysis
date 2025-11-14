@@ -35,20 +35,30 @@ Notes:               - RESTful API design
 
 from datetime import date
 from decimal import Decimal
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Generic, TypeVar
 from uuid import UUID
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic.generics import GenericModel
 
 from app.core.database import get_db
 from app.services.advanced_valuation_service import AdvancedValuationService
 from app.services.sensitivity_analysis_service import SensitivityAnalysisService
 from app.schemas.valuation_risk import ValuationResponse
-from app.schemas.response import ApiResponse
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+class ApiResponse(GenericModel, Generic[T]):
+    success: bool
+    message_en: Optional[str] = None
+    message_fa: Optional[str] = None
+    data: Optional[T] = None
+
 
 router = APIRouter(prefix="/advanced-valuations", tags=["Advanced Valuations"])
 
@@ -438,16 +448,19 @@ async def dcf_sensitivity_analysis(
         service = SensitivityAnalysisService(db, tenant_id)
         
         base_params = {
-            "wacc": wacc,
-            "perpetual_growth_rate": perpetual_growth_rate,
-            "revenue_growth": revenue_growth,
-            "ebitda_margin": ebitda_margin,
+            "fcf": float(revenue_growth) * 1000000,
+            "wacc": float(wacc),
+            "terminal_growth": float(perpetual_growth_rate),
+            "years": 5,
         }
         
-        results = await service.dcf_sensitivity_analysis(
+        variables = ["wacc", "terminal_growth", "fcf"]
+        
+        results = await service.tornado_chart_data(
             company_id=company_id,
-            valuation_date=valuation_date,
             base_params=base_params,
+            variables=variables,
+            variation_pct=0.20,
         )
         
         return ApiResponse(
@@ -494,11 +507,25 @@ async def scenario_comparison(
     try:
         service = SensitivityAnalysisService(db, tenant_id)
         
-        results = await service.scenario_comparison(
-            company_id=company_id,
-            valuation_date=valuation_date,
-            scenarios=scenarios,
-        )
+        # Convert scenarios to multi-scenario analysis
+        all_results = {}
+        for scenario_name, params in scenarios.items():
+            ev = service.dcf_valuation_simple(
+                fcf=params.get("fcf", 1000000),
+                wacc=params.get("wacc", 0.12),
+                terminal_growth=params.get("growth", 0.025),
+                years=5,
+            )
+            all_results[scenario_name] = {
+                "enterprise_value": round(ev, 2),
+                "parameters": params,
+            }
+        
+        results = {
+            "scenarios": all_results,
+            "base_scenario": "base",
+            "company_id": str(company_id),
+        }
         
         return ApiResponse(
             success=True,

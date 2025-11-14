@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 class SensitivityAnalysisService:
     """Service for sensitivity analysis."""
 
-    def __init__(self, db: AsyncSession, tenant_id: str):
+    def __init__(self, db: AsyncSession, tenant_id: UUID | str):
         """
         Initialize sensitivity analysis service.
 
         Args:
             db: Database session
-            tenant_id: Current tenant ID
+            tenant_id: Current tenant ID (UUID or str)
         """
         self.db = db
         self.tenant_id = str(tenant_id) if isinstance(tenant_id, UUID) else tenant_id
