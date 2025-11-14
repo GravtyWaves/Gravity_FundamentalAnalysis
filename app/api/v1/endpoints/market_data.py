@@ -54,10 +54,13 @@ async def sync_market_data(
                 detail=f"Company with ticker {ticker} not found",
             )
 
+        # Type assertion for Pylance - company is an ORM instance
+        assert company.id is not None
+        
         # Sync market data
         market_data_service = MarketDataService(db, tenant_id)
         records = await market_data_service.sync_market_data(
-            company_id=company.id,
+            company_id=company.id,  # type: ignore[arg-type]
             ticker=ticker,
             start_date=start_date,
             end_date=end_date,
@@ -122,13 +125,13 @@ async def get_market_data(
             "data": [
                 {
                     "date": record.date.isoformat(),
-                    "open": float(record.open_price) if record.open_price else None,
-                    "high": float(record.high_price) if record.high_price else None,
-                    "low": float(record.low_price) if record.low_price else None,
-                    "close": float(record.close_price) if record.close_price else None,
-                    "adjusted_close": float(record.adjusted_close) if record.adjusted_close else None,
-                    "volume": float(record.volume) if record.volume else None,
-                    "market_cap": float(record.market_cap) if record.market_cap else None,
+                    "open": float(record.open_price) if record.open_price is not None else None,
+                    "high": float(record.high_price) if record.high_price is not None else None,
+                    "low": float(record.low_price) if record.low_price is not None else None,
+                    "close": float(record.close_price) if record.close_price is not None else None,
+                    "adjusted_close": float(record.adjusted_close) if record.adjusted_close is not None else None,
+                    "volume": float(record.volume) if record.volume is not None else None,
+                    "market_cap": float(record.market_cap) if record.market_cap is not None else None,
                 }
                 for record in records
             ],
@@ -172,14 +175,14 @@ async def get_latest_market_data(
             "status": "success",
             "data": {
                 "date": record.date.isoformat(),
-                "open": float(record.open_price) if record.open_price else None,
-                "high": float(record.high_price) if record.high_price else None,
-                "low": float(record.low_price) if record.low_price else None,
-                "close": float(record.close_price) if record.close_price else None,
-                "adjusted_close": float(record.adjusted_close) if record.adjusted_close else None,
-                "volume": float(record.volume) if record.volume else None,
-                "market_cap": float(record.market_cap) if record.market_cap else None,
-                "shares_outstanding": float(record.shares_outstanding) if record.shares_outstanding else None,
+                "open": float(record.open_price) if record.open_price is not None else None,
+                "high": float(record.high_price) if record.high_price is not None else None,
+                "low": float(record.low_price) if record.low_price is not None else None,
+                "close": float(record.close_price) if record.close_price is not None else None,
+                "adjusted_close": float(record.adjusted_close) if record.adjusted_close is not None else None,
+                "volume": float(record.volume) if record.volume is not None else None,
+                "market_cap": float(record.market_cap) if record.market_cap is not None else None,
+                "shares_outstanding": float(record.shares_outstanding) if record.shares_outstanding is not None else None,
             },
         }
 

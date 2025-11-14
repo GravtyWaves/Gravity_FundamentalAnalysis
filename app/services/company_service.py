@@ -15,13 +15,13 @@ from app.schemas.company import CompanyCreate, CompanyUpdate
 class CompanyService:
     """Service class for company-related business logic."""
 
-    def __init__(self, db: AsyncSession, tenant_id: UUID):
+    def __init__(self, db: AsyncSession, tenant_id: UUID | str):
         """
         Initialize company service.
 
         Args:
             db: Database session
-            tenant_id: Current tenant ID for multi-tenancy
+            tenant_id: Current tenant ID for multi-tenancy (UUID or str)
         """
         self.db = db
         # Convert UUID to string for database storage

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class MarketDataService:
     """Service for managing market data."""
 
-    def __init__(self, db: AsyncSession, tenant_id: str):
+    def __init__(self, db: AsyncSession, tenant_id: UUID | str):
         """
         Initialize market data service.
 
