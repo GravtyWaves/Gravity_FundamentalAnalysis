@@ -36,6 +36,9 @@ structlog = "^23.2.0"
 prometheus-client = "^0.19.0"
 celery = {extras = ["redis"], version = "^5.3.4"}
 flower = "^2.0.1"
+torch = "^2.1.0"
+reportlab = "^4.0.7"
+matplotlib = "^3.8.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
