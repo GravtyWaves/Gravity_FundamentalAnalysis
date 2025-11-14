@@ -48,6 +48,7 @@ from app.core.exceptions import (
 from app.schemas.base import ApiResponse
 from app.services.ml.intelligent_ensemble_engine import IntelligentEnsembleEngine
 from app.services.ml.trend_analysis_service import TrendAnalysisService
+from app.services.ml.industry_aware_trainer import IndustryAwareTrainer
 
 logger = logging.getLogger(__name__)
 
@@ -602,3 +603,350 @@ async def get_model_weights():
             description="Default ML-learned weights (updated monthly)",
         ),
     )
+
+
+# ==================== Industry-Aware Learning Endpoints ====================
+
+@router.post(
+    "/train-industry/{industry_name}",
+    response_model=ApiResponse,
+    status_code=status.HTTP_200_OK,
+    summary="🏭 Train Industry-Specific Model",
+    description="""
+    آموزش مدل مخصوص یک صنعت خاص
+    
+    این اندپوینت از تجربیات تمام نمادهای یک صنعت یاد می‌گیرد.
+    
+    **مثال:**
+    - برای صنعت "فلزات اساسی" از داده‌های فولاد، کاوه، ذوب، فخوز استفاده می‌کند
+    - وزن‌های بهینه برای این صنعت را یاد می‌گیرد
+    
+    **ویژگی‌ها:**
+    - ✅ یادگیری از چند نماد مختلف
+    - ✅ بهینه‌سازی مخصوص صنعت
+    - ✅ Transfer learning برای صنایع مشابه
+    """,
+)
+async def train_industry_model(
+    industry_name: str = Query(..., description="نام صنعت / Industry name"),
+    db: AsyncSession = Depends(get_db),
+):
+    """آموزش مدل مخصوص یک صنعت."""
+    try:
+        logger.info(f"🏭 Training industry model for: {industry_name}")
+        
+        # Initialize trainer
+        trainer = IndustryAwareTrainer(db=db, device="cpu")
+        
+        # Get company info for this industry
+        from app.models.company import Company
+        from sqlalchemy import select
+        
+        result = await db.execute(
+            select(Company.sector).where(Company.industry == industry_name).limit(1)
+        )
+        row = result.first()
+        
+        if not row:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Industry '{industry_name}' not found"
+            )
+        
+        sector = row.sector
+        
+        # Train industry-specific model
+        weights, accuracy = await trainer._train_industry_model(industry_name, sector)
+        
+        return ApiResponse(
+            success=True,
+            message_fa=f"✅ مدل صنعت {industry_name} آموزش داده شد",
+            message_en=f"✅ Industry model trained for {industry_name}",
+            data={
+                "industry": industry_name,
+                "sector": sector,
+                "model_weights": weights,
+                "accuracy": accuracy,
+                "best_models": sorted(weights, key=weights.get, reverse=True)[:3],
+                "interpretation_fa": f"بهترین مدل‌ها برای صنعت {industry_name}: " + 
+                                    ", ".join(sorted(weights, key=weights.get, reverse=True)[:3]),
+                "interpretation_en": f"Best models for {industry_name}: " +
+                                    ", ".join(sorted(weights, key=weights.get, reverse=True)[:3]),
+            },
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to train industry model: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+@router.post(
+    "/train-all-industries",
+    response_model=ApiResponse,
+    status_code=status.HTTP_200_OK,
+    summary="🌍 Train All Industries",
+    description="""
+    آموزش مدل برای تمام صنایع موجود در سیستم
+    
+    این اندپوینت:
+    - مدل جداگانه برای هر صنعت می‌سازد
+    - از الگوهای بین-صنعتی یاد می‌گیرد
+    - Meta-learner برای صنایع جدید آموزش می‌دهد
+    
+    **زمان اجرا:** 5-10 دقیقه (بسته به تعداد صنایع)
+    """,
+)
+async def train_all_industries(
+    db: AsyncSession = Depends(get_db),
+):
+    """آموزش مدل برای تمام صنایع."""
+    try:
+        logger.info("🌍 Starting training for all industries...")
+        
+        # Initialize trainer
+        trainer = IndustryAwareTrainer(db=db, device="cpu")
+        
+        # Train all industries
+        results = await trainer.train_all_industries()
+        
+        # Create summary
+        summary = {
+            "total_industries": len(results),
+            "industries": {},
+            "global_insights": {
+                "most_common_best_model": None,
+                "avg_accuracy_across_industries": 0.0,
+            }
+        }
+        
+        for industry, weights in results.items():
+            summary["industries"][industry] = {
+                "weights": weights,
+                "best_model": max(weights, key=weights.get),
+            }
+        
+        return ApiResponse(
+            success=True,
+            message_fa=f"✅ {len(results)} صنعت آموزش داده شدند",
+            message_en=f"✅ Trained models for {len(results)} industries",
+            data=summary,
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to train all industries: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+@router.get(
+    "/industry-insights/{industry_name}",
+    response_model=ApiResponse,
+    status_code=status.HTTP_200_OK,
+    summary="📊 Get Industry Insights",
+    description="""
+    دریافت بینش‌های یادگرفته شده برای یک صنعت
+    
+    شامل:
+    - بهترین مدل‌های ارزش‌گذاری برای این صنعت
+    - دقت تاریخی
+    - تعداد شرکت‌های تحلیل شده
+    - ویژگی‌های رشد
+    """,
+)
+async def get_industry_insights(
+    industry_name: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """دریافت بینش‌های صنعت."""
+    try:
+        # Initialize trainer and load profiles
+        trainer = IndustryAwareTrainer(db=db, device="cpu")
+        
+        # Get insights
+        profile = await trainer.get_industry_insights(industry_name)
+        
+        if not profile:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No insights available for industry '{industry_name}'"
+            )
+        
+        return ApiResponse(
+            success=True,
+            message_fa=f"✅ بینش‌های صنعت {industry_name} دریافت شد",
+            message_en=f"✅ Industry insights retrieved for {industry_name}",
+            data={
+                "industry": profile.industry_name,
+                "sector": profile.sector,
+                "company_count": profile.company_count,
+                "avg_accuracy": profile.avg_accuracy,
+                "model_weights": profile.avg_model_weights,
+                "best_performing_models": profile.best_performing_models,
+                "volatility_score": profile.volatility_score,
+                "interpretation_fa": (
+                    f"صنعت {industry_name} با {profile.company_count} شرکت تحلیل شد. "
+                    f"بهترین مدل‌ها: {', '.join(profile.best_performing_models[:3])}"
+                ),
+            },
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to get industry insights: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+@router.get(
+    "/compare-industries",
+    response_model=ApiResponse,
+    status_code=status.HTTP_200_OK,
+    summary="🔍 Compare Two Industries",
+    description="""
+    مقایسه الگوهای یادگیری بین دو صنعت
+    
+    **کاربرد:**
+    - تشخیص صنایع مشابه برای Transfer Learning
+    - درک تفاوت‌های ارزش‌گذاری بین صنایع
+    - بررسی امکان انتقال دانش
+    
+    **مثال:**
+    - مقایسه "فلزات اساسی" با "محصولات فلزی"
+    - بررسی شباهت "خودرو" با "قطعات خودرو"
+    """,
+)
+async def compare_industries(
+    industry1: str = Query(..., description="صنعت اول"),
+    industry2: str = Query(..., description="صنعت دوم"),
+    db: AsyncSession = Depends(get_db),
+):
+    """مقایسه دو صنعت."""
+    try:
+        # Initialize trainer
+        trainer = IndustryAwareTrainer(db=db, device="cpu")
+        
+        # Load profiles (in production, load from cache/database)
+        await trainer.train_all_industries()
+        
+        # Compare industries
+        comparison = await trainer.compare_industries(industry1, industry2)
+        
+        if "error" in comparison:
+            raise HTTPException(
+                status_code=404,
+                detail=comparison["error"]
+            )
+        
+        return ApiResponse(
+            success=True,
+            message_fa=f"✅ مقایسه {industry1} و {industry2} انجام شد",
+            message_en=f"✅ Compared {industry1} and {industry2}",
+            data={
+                **comparison,
+                "interpretation_fa": (
+                    f"شباهت بین {industry1} و {industry2}: {comparison['similarity_score']:.1%}. "
+                    f"{'قابل انتقال' if comparison['transferable'] else 'غیرقابل انتقال'}"
+                ),
+            },
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to compare industries: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+@router.get(
+    "/company-weights/{company_id}",
+    response_model=ApiResponse,
+    status_code=status.HTTP_200_OK,
+    summary="🎯 Get Optimized Weights for Company",
+    description="""
+    دریافت وزن‌های بهینه برای یک شرکت خاص
+    
+    این اندپوینت:
+    1. اگر صنعت شرکت در سیستم آموزش دیده، از وزن‌های مخصوص صنعت استفاده می‌کند
+    2. اگر صنعت جدید است، از Transfer Learning استفاده می‌کند
+    3. اگر صنعت مشابهی وجود ندارد، از Meta-Learner استفاده می‌کند
+    
+    **مثال:**
+    - برای "کاوه" (فلزات اساسی) از وزن‌های یادگرفته شده از فولاد، ذوب، فخوز استفاده می‌شود
+    """,
+)
+async def get_company_optimized_weights(
+    company_id: UUID,
+    use_transfer_learning: bool = Query(
+        default=True,
+        description="استفاده از Transfer Learning برای صنایع جدید"
+    ),
+    db: AsyncSession = Depends(get_db),
+):
+    """دریافت وزن‌های بهینه برای شرکت."""
+    try:
+        # Initialize trainer
+        trainer = IndustryAwareTrainer(db=db, device="cpu")
+        
+        # Train all industries (in production, load from cache)
+        await trainer.train_all_industries()
+        
+        # Get optimized weights
+        weights = await trainer.get_weights_for_company(
+            company_id=company_id,
+            use_transfer_learning=use_transfer_learning,
+        )
+        
+        # Get company info
+        from app.models.company import Company
+        from sqlalchemy import select
+        
+        result = await db.execute(
+            select(Company).where(Company.id == company_id)
+        )
+        company = result.scalar_one_or_none()
+        
+        if not company:
+            raise HTTPException(status_code=404, detail="Company not found")
+        
+        return ApiResponse(
+            success=True,
+            message_fa=f"✅ وزن‌های بهینه برای {company.ticker} دریافت شد",
+            message_en=f"✅ Optimized weights retrieved for {company.ticker}",
+            data={
+                "company": {
+                    "id": str(company.id),
+                    "ticker": company.ticker,
+                    "name": company.name,
+                    "industry": company.industry,
+                    "sector": company.sector,
+                },
+                "optimized_weights": weights,
+                "best_models": sorted(weights, key=weights.get, reverse=True)[:3],
+                "source": "industry-specific" if company.industry in trainer.industry_profiles else "transfer-learning",
+                "interpretation_fa": (
+                    f"برای {company.ticker} در صنعت {company.industry}، "
+                    f"بهترین مدل‌ها: {', '.join(sorted(weights, key=weights.get, reverse=True)[:3])}"
+                ),
+            },
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to get company weights: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
