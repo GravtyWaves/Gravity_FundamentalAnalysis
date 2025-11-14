@@ -443,6 +443,13 @@ class StockScoringService:
             # Determine rating
             rating = self._get_rating(composite_score)
 
+            # Get ML model confidence metrics (if available)
+            ml_confidence = None
+            ml_metrics = None
+            if self.ml_optimizer is not None:
+                ml_confidence = await self.ml_optimizer.get_model_confidence_score()
+                ml_metrics = await self.ml_optimizer.get_model_metrics()
+
             return {
                 "status": "success",
                 "company_id": str(company_id),
@@ -451,6 +458,8 @@ class StockScoringService:
                 "rating": rating,
                 "weights_used": weights,
                 "ml_optimized": self.ml_optimizer is not None,
+                "ml_confidence": ml_confidence,
+                "ml_model_metrics": ml_metrics,
                 "dimension_scores": {
                     "valuation": {
                         "score": round(valuation_score, 2),

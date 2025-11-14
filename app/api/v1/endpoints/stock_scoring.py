@@ -55,8 +55,17 @@ async def get_stock_score(
     - Composite score (0-100)
     - Letter rating (A+ to F)
     - ML-optimized weights used
+    - **ML model confidence score (0.0-1.0)**: Indicates prediction reliability
+    - **ML model performance metrics**: R², MSE, cross-validation scores
     - Individual dimension scores and breakdowns
     - Calculation date
+
+    **ML Model Confidence Levels:**
+    - 0.9-1.0 (excellent): High reliability, model performs very well
+    - 0.7-0.9 (good): Reliable predictions, good model performance
+    - 0.5-0.7 (moderate): Moderate reliability, acceptable performance
+    - 0.3-0.5 (fair): Lower reliability, use with caution
+    - 0.0-0.3 (poor): Low reliability, consider default weights
 
     **Note:** Scores are calculated daily via scheduled tasks.
     Use GET /health endpoint to check last calculation time.

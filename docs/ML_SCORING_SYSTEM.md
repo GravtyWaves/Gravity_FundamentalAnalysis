@@ -31,6 +31,110 @@ The **Fundamental Analysis Microservice** implements a sophisticated **Machine L
 
 ---
 
+## ML Model Confidence & Accuracy
+
+### Confidence Score (0.0-1.0)
+
+The **ML confidence score** indicates the reliability of the model's weight predictions based on:
+
+1. **R² Score** (Model Accuracy)
+   - Measures how well the model explains variance in stock performance
+   - Higher R² = better predictions = higher confidence
+
+2. **Cross-Validation Consistency**
+   - Lower CV standard deviation = more stable model = higher confidence
+   - High CV std indicates overfitting or inconsistent predictions
+
+3. **Training Data Size**
+   - Insufficient samples reduce confidence
+   - Minimum: 100 samples (configurable)
+
+### Confidence Level Categories
+
+| Confidence Score | Level | Description | Recommendation |
+|-----------------|-------|-------------|----------------|
+| **0.9-1.0** | Excellent | High reliability, model performs very well | Trust ML weights fully |
+| **0.7-0.9** | Good | Reliable predictions, good performance | Use ML weights confidently |
+| **0.5-0.7** | Moderate | Moderate reliability, acceptable | Use ML weights with awareness |
+| **0.3-0.5** | Fair | Lower reliability, use with caution | Consider default weights |
+| **0.0-0.3** | Poor | Low reliability, model struggles | Fallback to default weights |
+
+### Confidence Calculation Formula
+
+```python
+base_confidence = f(r2_score)  # Mapped to 0.0-1.0 range
+
+# Penalty for high CV std (inconsistent model)
+cv_penalty = min(0.2, cv_std * 0.5)  # Max 20% penalty
+confidence = base_confidence - cv_penalty
+
+# Penalty for insufficient training data
+if training_samples < MIN_TRAINING_SAMPLES:
+    data_ratio = training_samples / MIN_TRAINING_SAMPLES
+    confidence *= data_ratio
+
+return round(confidence, 3)
+```
+
+### Model Performance Metrics
+
+**R² Score (Coefficient of Determination):**
+- Range: -∞ to 1.0
+- **> 0.9**: Excellent fit
+- **0.7-0.9**: Good fit
+- **0.5-0.7**: Moderate fit
+- **0.3-0.5**: Fair fit
+- **< 0.3**: Poor fit
+
+**MSE (Mean Squared Error):**
+- Lower is better
+- Measures average squared prediction error
+- Used to detect overfitting
+
+**Cross-Validation Scores:**
+- 5-fold CV with R² metric
+- `cv_mean`: Average R² across folds
+- `cv_std`: Standard deviation (consistency measure)
+- Low `cv_std` indicates stable, generalizable model
+
+### Health Check with ML Metrics
+
+```http
+GET /health/ready
+```
+
+**Response:**
+```json
+{
+  "status": "ready",
+  "service": "Fundamental Analysis Microservice",
+  "checks": {
+    "database": "healthy",
+    "redis": "healthy",
+    "ml_model": "trained"
+  },
+  "ml_model_info": {
+    "status": "trained",
+    "training_date": "2025-11-14",
+    "performance": {
+      "r2_score": 0.85,
+      "mse": 0.12,
+      "cv_mean": 0.83,
+      "cv_std": 0.04
+    },
+    "training_data": {
+      "training_samples": 160,
+      "test_samples": 40,
+      "total_samples": 200
+    },
+    "confidence_score": 0.87,
+    "confidence_level": "good"
+  }
+}
+```
+
+---
+
 ## Architecture
 
 ```
@@ -85,6 +189,24 @@ GET /api/v1/stock-scoring/{company_id}/score
   "composite_score": 78.45,
   "rating": "B+",
   "ml_optimized": true,
+  "ml_confidence": 0.87,
+  "ml_model_metrics": {
+    "status": "trained",
+    "training_date": "2025-11-14",
+    "performance": {
+      "r2_score": 0.85,
+      "mse": 0.12,
+      "cv_mean": 0.83,
+      "cv_std": 0.04
+    },
+    "training_data": {
+      "training_samples": 160,
+      "test_samples": 40,
+      "total_samples": 200
+    },
+    "confidence_score": 0.87,
+    "confidence_level": "good"
+  },
   "weights_used": {
     "valuation": 0.28,
     "profitability": 0.22,

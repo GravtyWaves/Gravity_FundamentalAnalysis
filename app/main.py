@@ -113,17 +113,20 @@ async def readiness_check() -> JSONResponse:
     Readiness check endpoint.
 
     Checks if the service is ready to accept traffic.
-    Validates database and Redis connectivity.
+    Validates database, Redis connectivity, and ML model status.
 
     Returns:
         JSONResponse: Service readiness status with dependency checks
     """
     from app.core.database import engine
     from app.core.redis_client import get_redis_client
+    from app.services.ml_weight_optimizer import MLWeightOptimizer
+    from app.core.database import AsyncSessionLocal
 
     checks = {
         "database": "unknown",
         "redis": "unknown",
+        "ml_model": "unknown",
     }
 
     # Check database connection
@@ -144,16 +147,37 @@ async def readiness_check() -> JSONResponse:
         logger.error(f"Redis health check failed: {e}")
         checks["redis"] = "unhealthy"
 
-    all_healthy = all(status == "healthy" for status in checks.values())
+    # Check ML model status
+    ml_metrics = None
+    try:
+        async with AsyncSessionLocal() as db:
+            optimizer = MLWeightOptimizer(db, "default_tenant")
+            await optimizer.load_model()
+            ml_metrics = await optimizer.get_model_metrics()
+            checks["ml_model"] = ml_metrics["status"]
+    except Exception as e:
+        logger.error(f"ML model health check failed: {e}")
+        checks["ml_model"] = "error"
+
+    all_healthy = (
+        checks["database"] == "healthy" and 
+        checks["redis"] == "healthy"
+    )
     status_code = 200 if all_healthy else 503
+
+    response_content = {
+        "status": "ready" if all_healthy else "not_ready",
+        "service": settings.app_name,
+        "checks": checks,
+    }
+    
+    # Include ML model metrics if available
+    if ml_metrics:
+        response_content["ml_model_info"] = ml_metrics
 
     return JSONResponse(
         status_code=status_code,
-        content={
-            "status": "ready" if all_healthy else "not_ready",
-            "service": settings.app_name,
-            "checks": checks,
-        },
+        content=response_content,
     )
 
 
