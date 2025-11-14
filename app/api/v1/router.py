@@ -18,6 +18,7 @@ from app.api.v1.endpoints import (
     value_drivers,
     valuations,
 )
+from app.api.v1 import advanced_valuations, ml_ensemble_valuations
 
 api_router = APIRouter()
 
@@ -34,3 +35,9 @@ api_router.include_router(scenario_analysis.router, prefix="/scenario-analysis",
 api_router.include_router(sensitivity_analysis.router, prefix="/sensitivity-analysis", tags=["sensitivity-analysis"])
 api_router.include_router(value_drivers.router, prefix="/value-drivers", tags=["value-drivers"])
 api_router.include_router(stock_scoring.router, prefix="/stock-scoring", tags=["stock-scoring"])
+
+# Advanced Valuations (7 new models)
+api_router.include_router(advanced_valuations.router, prefix="/advanced-valuations", tags=["advanced-valuations"])
+
+# ML Ensemble Valuations (Intelligent AI-powered)
+api_router.include_router(ml_ensemble_valuations.router, prefix="/ml-ensemble", tags=["ml-ensemble-valuations"])
